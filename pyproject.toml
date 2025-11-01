@@ -1,0 +1,11 @@
+[tool.basedpyright]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownParameterType = false
+reportUnknownType = false
+reportUnknownLambdaType = false
+reportUntypedFunctionDecorator = false
+reportUntypedFunctionDecoratorType = false
