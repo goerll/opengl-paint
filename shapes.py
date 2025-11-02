@@ -7,8 +7,9 @@ from math_utils import Vec2, Vec3
 
 class Shape:
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
-        self.vertices = vertices
+        self.vertices = []
         self.color = color
+        self.thickness = 1
 
     def get_vertices(self):
         raise NotImplementedError
@@ -30,7 +31,7 @@ class Shape:
 
 class Rectangle(Shape):
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
-        self.color = color
+        super().__init__(vertices, color)
 
         x, y = vertices[0], vertices[1]
         width, height = vertices[2] - x, vertices[3] - y
@@ -56,19 +57,18 @@ class Rectangle(Shape):
         return GL_LINE_LOOP
 
     def contains_point(self, point: Vec2) -> bool:
-        print(self.vertices[0])
-        print(point.x)
-        print(self.vertices[1])
+        print("ENTROU")
 
-        print()
-
-        print(point.y)
-        print(self.vertices[2])
-        print(self.vertices[3])
-        return (
-            self.vertices[0] <= point.x <= self.vertices[4]
-            and self.vertices[1] <= point.y <= self.vertices[3]
-        )
+        x_min = min(self.vertices[0], self.vertices[4])  # x
+        x_max = max(self.vertices[0], self.vertices[4])  # x + width
+        y_min = min(self.vertices[1], self.vertices[5])  # y
+        y_max = max(self.vertices[1], self.vertices[5])  # y + height
+        
+        if (x_min <= point.x <= x_max):
+            print("BLA")
+        if (y_min <= point.y <= y_max):
+            print("BLE")
+        return (x_min <= point.x <= x_max and y_min <= point.y <= y_max)
 
     def move(self, delta: Vec2) -> None:
         logging.info("Moving rectangle")
@@ -79,6 +79,7 @@ class Rectangle(Shape):
 
 class Triangle(Shape):
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 0.0, 0.0)):
+        super().__init__(vertices, color)
         x, y = vertices[0], vertices[1]
         origin = Vec2(x, y)
         end = Vec2(vertices[2], vertices[3])
@@ -133,6 +134,7 @@ class Triangle(Shape):
 
 class Circle(Shape):
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
+        super().__init__(vertices, color)
         x, y = vertices[0], vertices[1]
         origin = Vec2(x, y)
         self.position = origin
@@ -172,34 +174,35 @@ class Circle(Shape):
             self.vertices[i + 1] += delta.y
 
 class Polygon(Shape):
-    def __init__(self, points: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
-        if len(points) >= 2:
-            self.centroid_x = sum(points[i] for i in range(0, len(points), 2)) / (len(points) // 2)
-            self.centroid_y = sum(points[i] for i in range(1, len(points), 2)) / (len(points) // 2)
+    def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
+        super().__init__(vertices, color)
+        if len(vertices) >= 2:
+            self.centroid_x = sum(vertices[i] for i in range(0, len(vertices), 2)) / (len(vertices) // 2)
+            self.centroid_y = sum(vertices[i] for i in range(1, len(vertices), 2)) / (len(vertices) // 2)
 
         self.color = color
-        self.points = points
+        self.vertices = vertices
 
     def get_vertices(self):
-        return self.points
+        return self.vertices
 
     def get_draw_mode(self):
         return GL_LINE_LOOP
 
     def contains_point(self, point: Vec2) -> bool:
         """Ray casting algorithm: shoot ray right, count edge crossings"""
-        if len(self.points) < 6:
+        if len(self.vertices) < 6:
             return False
 
         x, y = point.x, point.y
         inside = False
         
         # Start with the last vertex
-        p1x, p1y = self.points[-2], self.points[-1]
+        p1x, p1y = self.vertices[-2], self.vertices[-1]
         
         # Check each edge
-        for i in range(0, len(self.points), 2):
-            p2x, p2y = self.points[i], self.points[i + 1]
+        for i in range(0, len(self.vertices), 2):
+            p2x, p2y = self.vertices[i], self.vertices[i + 1]
             
             # Check if the ray crosses this edge
             if y > min(p1y, p2y) and y <= max(p1y, p2y):
@@ -219,10 +222,10 @@ class Polygon(Shape):
         return inside
 
     def move(self, delta: Vec2) -> None:
-        # Move all points
-        for i in range(0, len(self.points), 2):
-            self.points[i] += delta.x
-            self.points[i + 1] += delta.y
+        # Move all vertices
+        for i in range(0, len(self.vertices), 2):
+            self.vertices[i] += delta.x
+            self.vertices[i + 1] += delta.y
         
         # Update centroid
         if hasattr(self, 'centroid_x') and hasattr(self, 'centroid_y'):

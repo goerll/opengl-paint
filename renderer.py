@@ -17,6 +17,7 @@ from OpenGL.GL import (
     glUseProgram,
     glDrawArrays,
     glUniformMatrix4fv,
+    glLineWidth,
 )
 
 import glm
@@ -78,6 +79,10 @@ class Renderer:
         color_location = glGetUniformLocation(self.shader_program.program, "color")
         color = shape.get_color()
         glUniform3f(color_location, color.r, color.g, color.b)
+
+        # Set line thickness
+        thickness = getattr(shape, 'thickness', 2.0)
+        glLineWidth(thickness)
 
         # Draw
         if shape.get_draw_mode() == GL_TRIANGLES:

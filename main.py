@@ -36,7 +36,8 @@ class GraphicsApp:
         self.panning: bool = False
         self.dragging: bool = False
         self.objects: list[Triangle | Circle | Rectangle | Polygon] = []
-        self.selected_shape: Triangle | Circle | Rectangle | Polygon | None = None
+        self.ui: list[Triangle | Circle | Rectangle | Polygon] = []
+        self.selected_shapes: list[Triangle | Circle | Rectangle | Polygon] = []
 
         # Camera
         self.camera_x: float = 0.0
@@ -157,88 +158,142 @@ class GraphicsApp:
 
         xpos, ypos = glfw.get_cursor_pos(window)
         wx, wy = app.screen_to_world(xpos, ypos)
+        click_point = Vec2(wx, wy)
+        app.editing_origin = click_point
+        
+        if button == glfw.MOUSE_BUTTON_LEFT:
+            if action == glfw.PRESS:
+                app._handle_left_press(window, click_point)
+            elif action == glfw.RELEASE:
+                app._handle_left_release()
+        
+        elif button == glfw.MOUSE_BUTTON_RIGHT:
+            app._handle_right_click(action, wx, wy)
 
-        app.editing_origin = Vec2(wx, wy)
-
-        match button:
-            case glfw.MOUSE_BUTTON_LEFT:
-                if action == glfw.PRESS:
-                    match app.mode:
-                        case "select":
-                            clicked_shape = None
-                            for shape in reversed(app.objects):
-                                if shape.contains_point(app.editing_origin):
-                                    clicked_shape = shape
-                                    break
-                            if clicked_shape:
-                                app.selected_shape = clicked_shape
-                                app.dragging = True
-                                logging.info(f"Selected {type(clicked_shape).__name__}")
-                            else:
-                                app.selected_shape = None
-                                logging.info("Deselected")
-
-                        case "triangle" | "circle" | "rectangle":
-                            app.editing_shape = True
-                            app.vertices = [wx, wy]
-                            app.add_shape([wx, wy]*2)
-
-                        case "polygon":
-                            if app.vertices == []:
-                                app.editing_shape = True
-                                app.vertices.extend([wx, wy])
-                                app.add_shape([wx, wy]*2)
-                            else:
-                                app.vertices.extend([wx, wy])
-
-                            logging.info("Added vertex (%f, %f) to polygon", wx, wy)
-
-                            if glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS:
-                                app.editing_shape = False
-                                app.vertices.clear()
-                                logging.info(f"Polygon created with {len(app.vertices)//2} vertices (Total shapes: {len(app.objects)})")
-
-                        case _:
-                            logging.error(f"Invalid shape: {app.mode}")
-
-                elif action == glfw.RELEASE:
-                    match app.mode:
-                        case "select":
-                            app.dragging = False
-
-                        case "triangle" | "circle" | "rectangle":
-                            app.editing_shape = False
-                            app.vertices.clear()
-                            logging.info(f"Shape {app.mode} created at {app.editing_origin}. Total shapes: {len(app.objects)}")  
-
-                        case "polygon":
-                            pass
-
-                        case _:
-                            logging.error(f"Invalid shape: {app.mode}")
-
-
-            case glfw.MOUSE_BUTTON_RIGHT:
-                if action == glfw.PRESS:
-                    app.panning = True
-                    logging.info("Started panning at (%f, %f)", wx, wy)
-                elif action == glfw.RELEASE:
-                    app.panning = False
-                    logging.info("Stopped panning at (%f, %f)", wx, wy) 
-
+    def _handle_left_press(self, window: Any, click_point: Vec2) -> None:
+        match self.mode:
+            case "select":
+                self._handle_selection(window, click_point)
+            case "triangle" | "circle" | "rectangle":
+                self._start_primitive_creation(click_point)
+            case "polygon":
+                self._handle_polygon_creation(window, click_point)
             case _:
-                logging.debug("Untreated mouse input")
+                logging.error(f"Invalid mode: {self.mode}")
+
+    def _handle_left_release(self) -> None:
+        """Handle left mouse release based on current mode"""
+        match self.mode:
+            case "select":
+                self.dragging = False
+            case "triangle" | "circle" | "rectangle":
+                self._finish_primitive_creation()
+            case "polygon":
+                pass
+            case _:
+                logging.error(f"Invalid mode: {self.mode}")
+
+    def _handle_right_click(self, action: int, wx: float, wy: float) -> None:
+        """Handle right mouse button for panning"""
+        match action:
+            case glfw.PRESS:
+                self.panning = True
+                logging.info("Started panning at (%.2f, %.2f)", wx, wy)
+            case glfw.RELEASE:
+                self.panning = False
+                logging.info("Stopped panning at (%.2f, %.2f)", wx, wy)
+            case _:
+                pass
+
+    def _handle_selection(self, window: Any, click_point: Vec2) -> None:
+        """Handle shape selection logic"""
+        clicked_shape = self._find_clicked_shape(click_point)
+        shift_pressed = glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
+        
+        if clicked_shape:
+            self._select_shape(clicked_shape, shift_pressed)
+            self.dragging = True
+            logging.info(f"Selected {type(clicked_shape).__name__}")
+        else:
+            self._clear_selection()
+            self.dragging = False
+            logging.info("Deselected")
+
+    def _find_clicked_shape(self, click_point: Vec2):
+        """Find the topmost shape at click point"""
+        for shape in reversed(self.objects):
+            if shape.contains_point(click_point):
+                return shape
+        return None
+
+    def _select_shape(self, clicked_shape, shift_pressed: bool) -> None:
+        """Select a shape with proper multi-selection handling"""
+        clicked_shape.thickness = 2
+        
+        if shift_pressed:
+            # Multi-select: add if not already selected
+            if clicked_shape not in self.selected_shapes:
+                self.selected_shapes.append(clicked_shape)
+        else:
+            # Single select: clear previous and select new
+            if clicked_shape not in self.selected_shapes:
+                self._reset_thickness_for_selected()
+                self.selected_shapes = [clicked_shape]
+
+    def _clear_selection(self) -> None:
+        """Clear all selected shapes"""
+        self._reset_thickness_for_selected()
+        self.selected_shapes.clear()
+
+    def _reset_thickness_for_selected(self) -> None:
+        """Reset thickness for all currently selected shapes"""
+        for shape in self.selected_shapes:
+            shape.thickness = 1
+
+    def _start_primitive_creation(self, click_point: Vec2) -> None:
+        """Start creating a primitive shape"""
+        self.editing_shape = True
+        self.vertices = [click_point.x, click_point.y]
+        self.add_shape([click_point.x, click_point.y] * 2)
+
+    def _finish_primitive_creation(self) -> None:
+        """Finish creating a primitive shape"""
+        self.editing_shape = False
+        self.vertices.clear()
+        logging.info(f"Shape {self.mode} created at {self.editing_origin}. Total shapes: {len(self.objects)}")
+
+    def _handle_polygon_creation(self, window: Any, click_point: Vec2) -> None:
+        """Handle polygon vertex addition and completion"""
+        shift_pressed = glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
+        
+        # Add vertex
+        if not self.vertices:  # First vertex
+            self.editing_shape = True
+            self.vertices.extend([click_point.x, click_point.y])
+            self.add_shape([click_point.x, click_point.y] * 2)
+        else:  # Additional vertices
+            self.vertices.extend([click_point.x, click_point.y])
+        
+        logging.info("Added vertex (%.2f, %.2f) to polygon", click_point.x, click_point.y)
+        
+        # Complete polygon if shift pressed
+        if shift_pressed and len(self.vertices) >= 6:  # At least 3 vertices
+            self.editing_shape = False
+            vertex_count = len(self.vertices) // 2
+            self.vertices.clear()
+            logging.info(f"Polygon created with {vertex_count} vertices (Total shapes: {len(self.objects)})")
 
     @staticmethod
     def cursor_pos_callback(window: Any, xpos: float, ypos: float) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
         wx, wy = app.screen_to_world(xpos, ypos)
 
-        if app.dragging and app.selected_shape:
+        if app.dragging and app.selected_shapes:
             current_point = Vec2(wx, wy)
             delta = current_point - app.editing_origin
-            app.selected_shape.move(delta)
-            logging.info(f"Moved shape {type(app.selected_shape).__name__}")
+            for shape in app.selected_shapes:
+                shape.move(delta)
+            logging.info(f"Moved shapes")
             app.editing_origin = current_point
 
         elif app.editing_shape:
@@ -310,6 +365,13 @@ class GraphicsApp:
                     app.camera_x = 0.0
                     app.camera_y = 0.0
                     logging.info("Reset camera and zoom")
+
+                case glfw.KEY_D:
+                    if app.selected_shapes:
+                        for shape in app.selected_shapes:
+                            app.objects.remove(shape)
+                        app.selected_shapes.clear()
+                        logging.info("Deleted selected shapes")
 
                 case glfw.KEY_ESCAPE:
                     glfw.set_window_should_close(window, True)
