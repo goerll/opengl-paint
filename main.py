@@ -4,9 +4,6 @@ from OpenGL.GL import (
     glClearColor,
     glViewport,
     GL_COLOR_BUFFER_BIT,
-    glUniformMatrix4fv,
-    glGetUniformLocation,
-    GL_FALSE,
 )
 import glm
 import numpy as np
@@ -34,10 +31,12 @@ class GraphicsApp:
         self.fb_height: int = height
 
         # State
-        self.current_shape: str = "rectangle"
+        self.mode: str = "select"
         self.editing_shape: bool = False
         self.panning: bool = False
+        self.dragging: bool = False
         self.objects: list[Triangle | Circle | Rectangle | Polygon] = []
+        self.selected_shape: Triangle | Circle | Rectangle | Polygon | None = None
 
         # Camera
         self.camera_x: float = 0.0
@@ -94,9 +93,9 @@ class GraphicsApp:
     def framebuffer_size_callback(window: Any, width: int, height: int) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
         glViewport(0, 0, width, height)
+        logging.info(f"Viewport updated to {width}x{height}")
         app.width, app.height = glfw.get_window_size(window)
         app.fb_width, app.fb_height = width, height
-        logging.info(f"Viewport updated to {app.width}x{app.height}")
 
     def init_renderer(self) -> bool:
         self.renderer = Renderer()
@@ -164,7 +163,21 @@ class GraphicsApp:
         match button:
             case glfw.MOUSE_BUTTON_LEFT:
                 if action == glfw.PRESS:
-                    match app.current_shape:
+                    match app.mode:
+                        case "select":
+                            clicked_shape = None
+                            for shape in reversed(app.objects):
+                                if shape.contains_point(app.editing_origin):
+                                    clicked_shape = shape
+                                    break
+                            if clicked_shape:
+                                app.selected_shape = clicked_shape
+                                app.dragging = True
+                                logging.info(f"Selected {type(clicked_shape).__name__}")
+                            else:
+                                app.selected_shape = None
+                                logging.info("Deselected")
+
                         case "triangle" | "circle" | "rectangle":
                             app.editing_shape = True
                             app.vertices = [wx, wy]
@@ -186,20 +199,23 @@ class GraphicsApp:
                                 logging.info(f"Polygon created with {len(app.vertices)//2} vertices (Total shapes: {len(app.objects)})")
 
                         case _:
-                            logging.error(f"Invalid shape: {app.current_shape}")
+                            logging.error(f"Invalid shape: {app.mode}")
 
                 elif action == glfw.RELEASE:
-                    match app.current_shape:
+                    match app.mode:
+                        case "select":
+                            app.dragging = False
+
                         case "triangle" | "circle" | "rectangle":
                             app.editing_shape = False
                             app.vertices.clear()
-                            logging.info(f"Shape {app.current_shape} created at {app.editing_origin}. Total shapes: {len(app.objects)}")  
+                            logging.info(f"Shape {app.mode} created at {app.editing_origin}. Total shapes: {len(app.objects)}")  
 
                         case "polygon":
                             pass
 
                         case _:
-                            logging.error(f"Invalid shape: {app.current_shape}")
+                            logging.error(f"Invalid shape: {app.mode}")
 
 
             case glfw.MOUSE_BUTTON_RIGHT:
@@ -216,9 +232,16 @@ class GraphicsApp:
     @staticmethod
     def cursor_pos_callback(window: Any, xpos: float, ypos: float) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
+        wx, wy = app.screen_to_world(xpos, ypos)
 
-        if app.editing_shape:
-            wx, wy = app.screen_to_world(xpos, ypos)
+        if app.dragging and app.selected_shape:
+            current_point = Vec2(wx, wy)
+            delta = current_point - app.editing_origin
+            app.selected_shape.move(delta)
+            logging.info(f"Moved shape {type(app.selected_shape).__name__}")
+            app.editing_origin = current_point
+
+        elif app.editing_shape:
             app.vertices.extend([wx, wy])
 
             app.objects.pop()
@@ -227,7 +250,6 @@ class GraphicsApp:
             app.vertices = app.vertices[:-2]
 
         elif app.panning:
-            wx, wy = app.screen_to_world(xpos, ypos)
             delta_x = app.editing_origin.x - wx
             delta_y = app.editing_origin.y - wy
 
@@ -263,20 +285,24 @@ class GraphicsApp:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
         if action == glfw.PRESS:
             match key:
+                case glfw.KEY_S:
+                    app.mode = "select"
+                    logging.info("Mode:Select")
+
                 case glfw.KEY_T:
-                    app.current_shape = "triangle"
+                    app.mode = "triangle"
                     logging.info("Mode:Triangle")
 
                 case glfw.KEY_C:
-                    app.current_shape = "circle"
+                    app.mode = "circle"
                     logging.info("Mode:Circle")
 
                 case glfw.KEY_R:
-                    app.current_shape = "rectangle"
+                    app.mode = "rectangle"
                     logging.info("Mode:Rectangle")
 
                 case glfw.KEY_P:
-                    app.current_shape = "polygon"
+                    app.mode = "polygon"
                     logging.info("Mode:Polygon")
 
                 case glfw.KEY_SPACE:
@@ -294,7 +320,7 @@ class GraphicsApp:
     def add_shape(self, vertices: list[float]) -> None:
         white: Vec3 = Vec3(1.0, 1.0, 1.0)
 
-        match self.current_shape:
+        match self.mode:
             case "triangle":
                 self.objects.append(Triangle(vertices, white))
 
@@ -308,10 +334,10 @@ class GraphicsApp:
                 self.objects.append(Polygon(vertices, white))
 
             case _:
-                logging.error(f"Invalid shape: {self.current_shape}")
+                logging.error(f"Invalid shape: {self.mode}")
                 return
 
-        logging.debug(f"{self.current_shape.capitalize()} created at {self.editing_origin} (Total shapes: {len(self.objects)})")
+        logging.debug(f"{self.mode.capitalize()} created at {self.editing_origin} (Total shapes: {len(self.objects)})")
 
     def add_polygon(self, vertices: list[float]) -> None:
         self.objects.append(Polygon(vertices, white))
@@ -344,6 +370,7 @@ class GraphicsApp:
 
         print("=== OpenGL Paint ===")
         print("Controls:")
+        print("  S - Select mode")
         print("  T - Triangle mode")
         print("  C - Circle mode")
         print("  R - Rectangle mode")
@@ -352,7 +379,7 @@ class GraphicsApp:
         print("  Space - Reset camera and zoom")
         print("  Click and drag to draw shapes")
         print("  ESC - Exit")
-        print(f"Starting in {self.current_shape} mode")
+        print(f"Starting in {self.mode} mode")
         print("=" * 20)
 
         while not glfw.window_should_close(self.window):

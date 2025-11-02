@@ -16,6 +16,13 @@ class Vec2:
             return Vec2(self.x - other.x, self.y - other.y)
         else:
             raise TypeError("Can only subtract Vec2 from Vec2")
+    
+    def __mul__(self, other):
+        """Dot product using * operator"""
+        if isinstance(other, Vec2):
+            return self.x * other.x + self.y * other.y
+        else:
+            raise TypeError("Can only multiply Vec2 with Vec2")
 
     def add(self, other):
         """Alternative method for vector addition"""
@@ -52,6 +59,13 @@ class Vec3:
             return Vec3(self.r - other.r, self.g - other.g, self.b - other.b)
         else:
             raise TypeError("Can only subtract Vec3 from Vec3")
+
+    def __mul__(self, other):
+        """Dot product using * operator"""
+        if isinstance(other, Vec3):
+            return self.r * other.r + self.g * other.g + self.b * other.b
+        else:
+            raise TypeError("Can only multiply Vec3 with Vec3")
 
     def add(self, other):
         """Alternative method for vector addition"""
