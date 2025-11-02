@@ -21,6 +21,7 @@ logging.basicConfig(level=logging.INFO)
 # Globals
 window_width = 800
 window_height = 800
+white = Vec3(1.0, 1.0, 1.0)
 
 class GraphicsApp:
     def __init__(self, width: int = 800, height: int = 800) -> None:
@@ -29,6 +30,8 @@ class GraphicsApp:
         self.height: int = height
         self.window: None = None
         self.renderer: Renderer | None = None
+        self.fb_width: int = width
+        self.fb_height: int = height
 
         # State
         self.current_shape: str = "rectangle"
@@ -42,13 +45,15 @@ class GraphicsApp:
         self.zoom_level: float = 1.0
 
         # Temporary "cache" variables
-        self.vertices: list[Vec2] = []
+        self.vertices: list[float] = []
         self.editing_origin: Vec2 = Vec2(0.0, 0.0)
 
     def init_window(self) -> bool:
         if not glfw.init():
             logging.error("GLFW could not be initialized!")
             return False
+
+        glfw.window_hint(glfw.SCALE_TO_MONITOR, glfw.FALSE)
 
         logging.info("GLFW initialized")
 
@@ -65,6 +70,12 @@ class GraphicsApp:
         # Set window
         glfw.make_context_current(self.window)
         glfw.set_window_user_pointer(self.window, self)
+
+        win_w, win_h = glfw.get_window_size(self.window)
+        fb_w, fb_h = glfw.get_framebuffer_size(self.window)
+        self.width, self.height = win_w, win_h
+        self.fb_width, self.fb_height = fb_w, fb_h
+        glViewport(0, 0, fb_w, fb_h)
 
         logging.info("Window set")
 
@@ -83,7 +94,8 @@ class GraphicsApp:
     def framebuffer_size_callback(window: Any, width: int, height: int) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
         glViewport(0, 0, width, height)
-        app.width, app.height = width, height
+        app.width, app.height = glfw.get_window_size(window)
+        app.fb_width, app.fb_height = width, height
         logging.info(f"Viewport updated to {app.width}x{app.height}")
 
     def init_renderer(self) -> bool:
@@ -120,7 +132,7 @@ class GraphicsApp:
         return world_x, world_y
 
     def create_projection_matrix(self) -> glm.mat4:
-        aspect_ratio = self.width / self.height if self.height != 0 else 1.0
+        aspect_ratio = self.fb_width / self.fb_height if self.fb_height != 0 else 1.0
         view_height = 2.0 / self.zoom_level
         view_width = view_height * aspect_ratio
 
@@ -132,7 +144,6 @@ class GraphicsApp:
         return glm.ortho(left, right, bottom, top, -1.0, 1.0)
 
     def create_view_matrix(self) -> glm.mat4:
-        return glm.mat4(1.0)
         return glm.translate(
             glm.mat4(1.0), glm.vec3(-self.camera_x, -self.camera_y, 0.0)
         )
@@ -147,6 +158,7 @@ class GraphicsApp:
 
         xpos, ypos = glfw.get_cursor_pos(window)
         wx, wy = app.screen_to_world(xpos, ypos)
+
         app.editing_origin = Vec2(wx, wy)
 
         match button:
@@ -155,27 +167,48 @@ class GraphicsApp:
                     match app.current_shape:
                         case "triangle" | "circle" | "rectangle":
                             app.editing_shape = True
-                            app.add_primitive_shape(app.editing_origin, Vec2(wx, wy))
+                            app.vertices = [wx, wy]
+                            app.add_shape([wx, wy]*2)
 
                         case "polygon":
-                            app.vertices.append(Vec2(wx, wy))
+                            if app.vertices == []:
+                                app.editing_shape = True
+                                app.vertices.extend([wx, wy])
+                                app.add_shape([wx, wy]*2)
+                            else:
+                                app.vertices.extend([wx, wy])
 
-                            if mods & glfw.MOD_SHIFT:
-                                app.add_polygon(app.vertices)
+                            logging.info("Added vertex (%f, %f) to polygon", wx, wy)
+
+                            if glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS:
+                                app.editing_shape = False
                                 app.vertices.clear()
+                                logging.info(f"Polygon created with {len(app.vertices)//2} vertices (Total shapes: {len(app.objects)})")
 
                         case _:
                             logging.error(f"Invalid shape: {app.current_shape}")
 
                 elif action == glfw.RELEASE:
-                    app.editing_shape = False
-                    logging.info(f"Shape {app.current_shape} created at {app.editing_origin}. Total shapes: {len(app.objects)}")  
+                    match app.current_shape:
+                        case "triangle" | "circle" | "rectangle":
+                            app.editing_shape = False
+                            app.vertices.clear()
+                            logging.info(f"Shape {app.current_shape} created at {app.editing_origin}. Total shapes: {len(app.objects)}")  
+
+                        case "polygon":
+                            pass
+
+                        case _:
+                            logging.error(f"Invalid shape: {app.current_shape}")
+
 
             case glfw.MOUSE_BUTTON_RIGHT:
                 if action == glfw.PRESS:
                     app.panning = True
+                    logging.info("Started panning at (%f, %f)", wx, wy)
                 elif action == glfw.RELEASE:
                     app.panning = False
+                    logging.info("Stopped panning at (%f, %f)", wx, wy) 
 
             case _:
                 logging.debug("Untreated mouse input")
@@ -186,20 +219,28 @@ class GraphicsApp:
 
         if app.editing_shape:
             wx, wy = app.screen_to_world(xpos, ypos)
+            app.vertices.extend([wx, wy])
+
             app.objects.pop()
-            app.add_primitive_shape(app.editing_origin, Vec2(wx, wy))
+            app.add_shape(app.vertices)
+
+            app.vertices = app.vertices[:-2]
 
         elif app.panning:
             wx, wy = app.screen_to_world(xpos, ypos)
             delta_x = app.editing_origin.x - wx
             delta_y = app.editing_origin.y - wy
+
             app.camera_x += delta_x
             app.camera_y += delta_y
-            app.editing_origin = Vec2(wx, wy)
 
     @staticmethod
     def scroll_callback(window: Any, xoffset: float, yoffset: float) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
+
+        xpos, ypos = glfw.get_cursor_pos(window)
+
+        wx, wy = app.screen_to_world(xpos, ypos)
 
         zoom_speed = 0.1
         if yoffset > 0:
@@ -208,6 +249,11 @@ class GraphicsApp:
             app.zoom_level *= 1.0 - zoom_speed
 
         app.zoom_level = max(0.1, min(app.zoom_level, 10.0))
+
+        new_wx, new_wy = app.screen_to_world(xpos, ypos)
+
+        app.camera_x += wx - new_wx
+        app.camera_y += wy - new_wy
 
         logging.info(f"Zoom level: {app.zoom_level}")
 
@@ -245,21 +291,21 @@ class GraphicsApp:
                 case _:
                     logging.debug("Untreated key input")
 
-    def add_primitive_shape(self, origin: Vec2, end: Vec2) -> None:
+    def add_shape(self, vertices: list[float]) -> None:
         white: Vec3 = Vec3(1.0, 1.0, 1.0)
 
         match self.current_shape:
             case "triangle":
-                size = (end - origin).length() * 2
-                self.objects.append(Triangle(origin, size, white))
+                self.objects.append(Triangle(vertices, white))
 
             case "circle":
-                size = (end - origin).length()
-                self.objects.append(Circle(origin, size))
+                self.objects.append(Circle(vertices, white))
 
             case "rectangle":
-                size = end - origin
-                self.objects.append(Rectangle(origin, size, white))
+                self.objects.append(Rectangle(vertices, white))
+
+            case "polygon":
+                self.objects.append(Polygon(vertices, white))
 
             case _:
                 logging.error(f"Invalid shape: {self.current_shape}")
@@ -268,7 +314,7 @@ class GraphicsApp:
         logging.debug(f"{self.current_shape.capitalize()} created at {self.editing_origin} (Total shapes: {len(self.objects)})")
 
     def add_polygon(self, vertices: list[float]) -> None:
-        self.objects.append(Polygon(vertices))
+        self.objects.append(Polygon(vertices, white))
         logging.info(f"Polygon created with {len(vertices)//2} vertices (Total shapes: {len(self.objects)})")
 
     def render(self) -> None:
