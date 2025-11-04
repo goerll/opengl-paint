@@ -9,9 +9,11 @@ import glm
 import numpy as np
 from typing import Any, cast
 from renderer import Renderer
-from shapes import Triangle, Circle, Rectangle, Polygon
+from shapes import Triangle, Circle, Rectangle, Polygon, Shape
 from math_utils import Vec2, Vec3
 import logging
+from imgui_bundle import imgui
+from imgui_bundle.python_backends.glfw_backend import GlfwRenderer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -31,13 +33,13 @@ class GraphicsApp:
         self.fb_height: int = height
 
         # State
-        self.mode: str = "select"
+        self.mode: str = "rectangle"
         self.editing_shape: bool = False
         self.panning: bool = False
         self.dragging: bool = False
-        self.objects: list[Triangle | Circle | Rectangle | Polygon] = []
+        self.objects: list[Shape] = []
         self.ui: list[Triangle | Circle | Rectangle | Polygon] = []
-        self.selected_shapes: list[Triangle | Circle | Rectangle | Polygon] = []
+        self.selected_shapes: list[Shape] = []
 
         # Camera
         self.camera_x: float = 0.0
@@ -47,6 +49,11 @@ class GraphicsApp:
         # Temporary "cache" variables
         self.vertices: list[float] = []
         self.editing_origin: Vec2 = Vec2(0.0, 0.0)
+        
+        # ImGui backend (initialized after window creation)
+        self.imgui_backend: Any | None = None
+        # Sidebar rect in window coords: (x, y, w, h)
+        self.sidebar_rect: tuple[float, float, float, float] | None = None
 
     def init_window(self) -> bool:
         if not glfw.init():
@@ -79,7 +86,7 @@ class GraphicsApp:
 
         logging.info("Window set")
 
-        # Set callbacks
+        # Set initial callbacks (may be overridden by ImGui backend; we will re-set after init)
         glfw.set_mouse_button_callback(self.window, self.mouse_callback)
         glfw.set_cursor_pos_callback(self.window, self.cursor_pos_callback)
         glfw.set_scroll_callback(self.window, self.scroll_callback)
@@ -87,6 +94,20 @@ class GraphicsApp:
         glfw.set_framebuffer_size_callback(self.window, self.framebuffer_size_callback)
 
         logging.info("Callbacks set")
+
+        # Initialize ImGui context and backend (overlay UI)
+        ctx = imgui.create_context()
+        imgui.set_current_context(ctx)
+        self.imgui_backend = GlfwRenderer(self.window)
+        io = imgui.get_io()
+        io.config_flags |= imgui.ConfigFlags_.nav_enable_keyboard
+
+        # Re-register our callbacks to ensure they are active after backend init
+        glfw.set_mouse_button_callback(self.window, self.mouse_callback)
+        glfw.set_cursor_pos_callback(self.window, self.cursor_pos_callback)
+        glfw.set_scroll_callback(self.window, self.scroll_callback)
+        glfw.set_key_callback(self.window, self.key_callback)
+        glfw.set_framebuffer_size_callback(self.window, self.framebuffer_size_callback)
 
         return True
 
@@ -155,6 +176,19 @@ class GraphicsApp:
     @staticmethod
     def mouse_callback(window: Any, button: int, action: int, mods: int) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
+        # Forward to ImGui backend first so UI receives the event
+        try:
+            if app.imgui_backend is not None and hasattr(app.imgui_backend, "mouse_button_callback"):
+                app.imgui_backend.mouse_button_callback(window, button, action, mods)
+        except Exception:
+            pass
+
+        # Block mouse if inside sidebar rectangle
+        if app.sidebar_rect is not None:
+            sx, sy, sw, sh = app.sidebar_rect
+            mx, my = glfw.get_cursor_pos(window)
+            if sx <= mx <= sx + sw and sy <= my <= sy + sh:
+                return
 
         xpos, ypos = glfw.get_cursor_pos(window)
         wx, wy = app.screen_to_world(xpos, ypos)
@@ -226,7 +260,7 @@ class GraphicsApp:
                 return shape
         return None
 
-    def _select_shape(self, clicked_shape, shift_pressed: bool) -> None:
+    def _select_shape(self, clicked_shape: Shape, shift_pressed: bool) -> None:
         """Select a shape with proper multi-selection handling"""
         clicked_shape.thickness = 2
         
@@ -286,6 +320,17 @@ class GraphicsApp:
     @staticmethod
     def cursor_pos_callback(window: Any, xpos: float, ypos: float) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
+        # Forward to ImGui backend first so UI receives the event
+        try:
+            if app.imgui_backend is not None and hasattr(app.imgui_backend, "cursor_pos_callback"):
+                app.imgui_backend.cursor_pos_callback(window, xpos, ypos)
+        except Exception:
+            pass
+        # Block mouse move interactions if inside sidebar
+        if app.sidebar_rect is not None:
+            sx, sy, sw, sh = app.sidebar_rect
+            if sx <= xpos <= sx + sw and sy <= ypos <= sy + sh:
+                return
         wx, wy = app.screen_to_world(xpos, ypos)
 
         if app.dragging and app.selected_shapes:
@@ -314,6 +359,18 @@ class GraphicsApp:
     @staticmethod
     def scroll_callback(window: Any, xoffset: float, yoffset: float) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
+        # Forward to ImGui backend first so UI receives the event
+        try:
+            if app.imgui_backend is not None and hasattr(app.imgui_backend, "scroll_callback"):
+                app.imgui_backend.scroll_callback(window, xoffset, yoffset)
+        except Exception:
+            pass
+        # Block scroll if inside sidebar
+        if app.sidebar_rect is not None:
+            sx, sy, sw, sh = app.sidebar_rect
+            mx, my = glfw.get_cursor_pos(window)
+            if sx <= mx <= sx + sw and sy <= my <= sy + sh:
+                return
 
         xpos, ypos = glfw.get_cursor_pos(window)
 
@@ -338,6 +395,14 @@ class GraphicsApp:
     @staticmethod
     def key_callback(window: Any, key: int, scancode: int, action: int, mods: int) -> None:
         app: GraphicsApp = glfw.get_window_user_pointer(window)
+        # Forward to ImGui backend first so UI receives the event
+        try:
+            if app.imgui_backend is not None and hasattr(app.imgui_backend, "keyboard_callback"):
+                app.imgui_backend.keyboard_callback(window, key, scancode, action, mods)
+        except Exception:
+            pass
+        if imgui.get_io().want_capture_keyboard and imgui.is_window_focused(imgui.FocusedFlags_.any_window):
+            return
         if action == glfw.PRESS:
             match key:
                 case glfw.KEY_S:
@@ -418,9 +483,6 @@ class GraphicsApp:
         for obj in self.objects:
             renderer.render_shape(obj)
 
-        window = cast(Any, self.window)
-        glfw.swap_buffers(window)
-
     def run(self) -> None:
         if not self.init_window():
             return
@@ -446,9 +508,72 @@ class GraphicsApp:
 
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
+            # Begin ImGui frame and build UI overlay
+            if self.imgui_backend is not None:
+                # Process inputs and start a new ImGui frame
+                self.imgui_backend.process_inputs()
+                imgui.new_frame()
+                self._build_sidebar_ui()
+
             self.render()
 
+            # Render ImGui over the scene
+            if self.imgui_backend is not None:
+                imgui.render()
+                self.imgui_backend.render(imgui.get_draw_data())
+
+            # Present the composed frame
+            window = cast(Any, self.window)
+            glfw.swap_buffers(window)
+
+        # Shutdown ImGui backend/context
+        if self.imgui_backend is not None:
+            try:
+                self.imgui_backend.shutdown()
+            except Exception:
+                pass
+            try:
+                imgui.destroy_context()
+            except Exception:
+                pass
         glfw.terminate()
+
+    def _build_sidebar_ui(self) -> None:
+        pad = 10
+        width = 280
+        # Position on the right side with slight padding, full height minus padding
+        imgui.set_next_window_pos(imgui.ImVec2(self.fb_width - width - pad, 0), imgui.Cond_.always)
+        imgui.set_next_window_size(imgui.ImVec2(width, self.fb_height), imgui.Cond_.always)
+        # Track sidebar rectangle in window coordinates for precise input gating (full height)
+        self.sidebar_rect = (self.width - width - pad, 0, width, self.height)
+        flags = (
+            imgui.WindowFlags_.no_move
+            | imgui.WindowFlags_.no_resize
+            | imgui.WindowFlags_.no_collapse
+            | imgui.WindowFlags_.no_saved_settings
+            | imgui.WindowFlags_.no_bring_to_front_on_focus
+        )
+        imgui.begin("Tools", flags=flags)
+        if imgui.button("Select"):
+            self.mode = "select"
+            logging.info("Mode:Select")
+        if imgui.button("Triangle"):
+            self.mode = "triangle"
+            logging.info("Mode:Triangle")
+        if imgui.button("Circle"):
+            self.mode = "circle"
+            logging.info("Mode:Circle")
+            if imgui.button("Rectangle"):
+                self.mode = "rectangle"
+                logging.info("Mode:Rectangle")
+        if imgui.button("Polygon"):
+            self.mode = "polygon"
+            logging.info("Mode:Polygon")
+        imgui.separator()
+        imgui.text(f"Zoom: {self.zoom_level:.2f}")
+        imgui.text(f"Objects: {len(self.objects)}")
+        imgui.text(f"Selected: {len(self.selected_shapes)}")
+        imgui.end()
 
 
 if __name__ == "__main__":
