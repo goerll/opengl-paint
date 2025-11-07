@@ -60,24 +60,8 @@ class ShapeFactory:
         return False
 
     def update_shape_drawing(self, wx: float, wy: float) -> None:
-        """Update the current shape being drawn"""
-        if len(self.vertices) >= 2:
-            # For primitive shapes (triangle, circle, rectangle), update the last vertex
-            if len(self.vertices) <= 4:
-                if len(self.vertices) == 2:
-                    # Only first point exists, add second point as preview
-                    self.vertices.extend([wx, wy])
-                elif len(self.vertices) == 4:
-                    # Update the second point
-                    self.vertices[2] = wx
-                    self.vertices[3] = wy
-            # For polygons, add a preview point to show where next vertex would be
-            elif len(self.vertices) > 4:
-                # Remove old preview point if exists (check if we have odd number of coordinates)
-                if len(self.vertices) % 2 != 0:
-                    self.vertices = self.vertices[:-2]
-                # Add new preview point
-                self.vertices.extend([wx, wy])
+        """DEPRECATED: This method is no longer used - temp_shape preview is handled directly in input_manager"""
+        pass
 
     def create_shape(self, mode: str, vertices: List[float], color: Vec3 = None) -> Triangle | Circle | Rectangle | Polygon | None:
         """Create a shape based on the mode and vertices"""

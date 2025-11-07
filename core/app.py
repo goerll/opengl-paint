@@ -151,30 +151,8 @@ class GraphicsApp:
             imgui.new_frame()
             self.imgui_impl.process_inputs()
 
-            # Update temporary shape drawing if in edit mode
-            if self.shape_factory.is_editing() and len(self.shape_factory.vertices) >= 2:
-                # Create temporary shape based on current drawing state
-                if self.mode != DrawingModes.POLYGON:
-                    # For primitive shapes, we need exactly 4 floats (2 vertices: start and current mouse position)
-                    temp_vertices = self.shape_factory.get_current_vertices()
-                    if len(temp_vertices) >= 2:
-                        # Take the first vertex and the last vertex as start/end points
-                        if len(temp_vertices) >= 4:
-                            # We have at least 4 floats, take first and last pair
-                            shape_vertices = [temp_vertices[0], temp_vertices[1], temp_vertices[-2], temp_vertices[-1]]
-                        else:
-                            # We have exactly 2 floats, need to wait for more input
-                            shape_vertices = None
-
-                        if shape_vertices:
-                            self.temp_shape = self.shape_factory.create_shape(self.mode, shape_vertices)
-                else:
-                    # For polygons, show the polygon being built (needs at least 2 vertices = 4 floats)
-                    temp_vertices = self.shape_factory.get_current_vertices()
-                    if len(temp_vertices) >= 4:  # At least 2 vertices for polygon
-                        self.temp_shape = self.shape_factory.create_shape(self.mode, temp_vertices)
-            else:
-                # Clear temporary shape when not editing
+            # Clear temporary shape when not editing (temp_shape is now updated directly in mouse movement)
+            if not self.shape_factory.is_editing():
                 self.temp_shape = None
 
             # Render UI

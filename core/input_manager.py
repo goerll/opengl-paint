@@ -84,6 +84,7 @@ class InputManager:
                 # Create the persistent polygon
                 final_vertices = self.app.shape_factory.get_final_polygon_vertices()
                 self.app.add_shape(final_vertices)
+                self.app.temp_shape = None  # Clear preview after polygon completion
         else:
             logging.error(f"Invalid mode: {self.app.mode}")
 
@@ -92,11 +93,15 @@ class InputManager:
         if self.app.mode == "select":
             self.dragging = False
         elif self.app.mode in ["triangle", "circle", "rectangle"]:
-            # Create the persistent shape with the current vertices
-            vertices = self.app.shape_factory.get_current_vertices()
-            if len(vertices) >= 2:  # Minimum vertices needed for a shape
-                self.app.add_shape(vertices)
+            # Create the persistent shape with start point + current mouse position
+            current_vertices = self.app.shape_factory.get_current_vertices()
+            if len(current_vertices) >= 2:  # Have at least start point
+                # Get current mouse position for the end point
+                wx, wy = self.app.camera.screen_to_world(*glfw.get_cursor_pos(self.window))
+                final_vertices = [current_vertices[0], current_vertices[1], wx, wy]
+                self.app.add_shape(final_vertices)
             self.app.shape_factory.finish_primitive_creation()
+            self.app.temp_shape = None  # Clear preview after shape creation
         # Polygon mode handled separately
 
     def _handle_right_click(self, action: int) -> None:
@@ -129,7 +134,8 @@ class InputManager:
             self.editing_origin = current_point
 
         elif self.app.shape_factory.editing_shape:
-            self.app.shape_factory.update_shape_drawing(wx, wy)
+            # Update temp_shape preview directly instead of modifying vertices array
+            self._update_shape_preview(wx, wy)
 
         elif self.panning:
             delta_x = self.editing_origin.x - wx
@@ -192,3 +198,22 @@ class InputManager:
 
                 case _:
                     logging.debug("Untreated key input")
+
+    def _update_shape_preview(self, wx: float, wy: float) -> None:
+        """Update the temporary shape preview without modifying the vertices array"""
+        if self.app.mode in ["triangle", "circle", "rectangle"]:
+            # For primitive shapes, create preview with start point + current mouse position
+            current_vertices = self.app.shape_factory.get_current_vertices()
+            if len(current_vertices) >= 2:  # Have at least start point
+                # Create preview with start point and current mouse position
+                preview_vertices = [current_vertices[0], current_vertices[1], wx, wy]
+                self.app.temp_shape = self.app.shape_factory.create_shape(self.app.mode, preview_vertices)
+
+        elif self.app.mode == "polygon":
+            # For polygons, create preview with existing vertices + current mouse position as preview point
+            current_vertices = self.app.shape_factory.get_current_vertices()
+            if len(current_vertices) >= 2:  # Have at least one vertex
+                # Add current mouse position as temporary preview point
+                preview_vertices = current_vertices.copy()
+                preview_vertices.extend([wx, wy])
+                self.app.temp_shape = self.app.shape_factory.create_shape(self.app.mode, preview_vertices)
