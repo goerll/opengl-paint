@@ -31,12 +31,16 @@ class InputManager:
     @staticmethod
     def framebuffer_size_callback(window: Any, width: int, height: int) -> None:
         """Handle framebuffer resize"""
+        from OpenGL.GL import glViewport
+
         app = glfw.get_window_user_pointer(window)
         if hasattr(app, 'camera'):
             app.camera.update_viewport(
                 *glfw.get_window_size(window),
                 width, height
             )
+            # Update OpenGL viewport to match framebuffer size
+            glViewport(0, 0, width, height)
 
     def mouse_callback(self, window: Any, button: int, action: int, mods: int) -> None:
         """Handle mouse button events"""
@@ -46,13 +50,14 @@ class InputManager:
         io = imgui.get_io()
         xpos, ypos = glfw.get_cursor_pos(window)
         io.add_mouse_pos_event(xpos, ypos)
+        io.add_mouse_button_event(button, action == glfw.PRESS)
         self.imgui_impl.mouse_button_callback(window, button, action, mods)
-        io.add_mouse_button_event(button, False)
 
         # Only process viewport input if ImGui doesn't want it
         if io.want_capture_mouse:
             return
 
+        # Convert to world coordinates and set editing origin only for viewport clicks
         wx, wy = self.app.camera.screen_to_world(xpos, ypos)
         click_point = Vec2(wx, wy)
         self.editing_origin = click_point

@@ -28,7 +28,11 @@ class ShapeFactory:
         """Handle polygon vertex addition and completion. Returns True if polygon was completed."""
         shift_pressed = glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
 
-        # Add vertex
+        # Remove preview point if it exists (odd number of coordinates)
+        if len(self.vertices) % 2 != 0:
+            self.vertices = self.vertices[:-2]
+
+        # Add the new vertex
         if not self.vertices:  # First vertex
             self.editing_shape = True
             self.vertices.extend([click_point.x, click_point.y])
@@ -40,6 +44,10 @@ class ShapeFactory:
         # Complete polygon if shift pressed
         if shift_pressed and len(self.vertices) >= 6:  # At least 3 vertices
             self.editing_shape = False
+            # Remove any preview point before finalizing
+            if len(self.vertices) % 2 != 0:
+                self.vertices = self.vertices[:-2]
+
             vertex_count = len(self.vertices) // 2
             # Store vertices before clearing for shape creation
             final_vertices = self.vertices.copy()
@@ -54,17 +62,21 @@ class ShapeFactory:
     def update_shape_drawing(self, wx: float, wy: float) -> None:
         """Update the current shape being drawn"""
         if len(self.vertices) >= 2:
-            # For primitive shapes, update the last vertex (current mouse position)
-            # For polygons, append new vertices
-            if len(self.vertices) == 2:
-                # Only first point exists, add second point
-                self.vertices.extend([wx, wy])
-            elif len(self.vertices) == 4:
-                # Update the second point for triangle/rectangle/circle
-                self.vertices[2] = wx
-                self.vertices[3] = wy
-            # For polygons with more than 2 vertices, keep adding
+            # For primitive shapes (triangle, circle, rectangle), update the last vertex
+            if len(self.vertices) <= 4:
+                if len(self.vertices) == 2:
+                    # Only first point exists, add second point as preview
+                    self.vertices.extend([wx, wy])
+                elif len(self.vertices) == 4:
+                    # Update the second point
+                    self.vertices[2] = wx
+                    self.vertices[3] = wy
+            # For polygons, add a preview point to show where next vertex would be
             elif len(self.vertices) > 4:
+                # Remove old preview point if exists (check if we have odd number of coordinates)
+                if len(self.vertices) % 2 != 0:
+                    self.vertices = self.vertices[:-2]
+                # Add new preview point
                 self.vertices.extend([wx, wy])
 
     def create_shape(self, mode: str, vertices: List[float], color: Vec3 = None) -> Triangle | Circle | Rectangle | Polygon | None:

@@ -25,8 +25,16 @@ class Camera:
 
     def screen_to_normalized(self, xpos: float, ypos: float) -> tuple[float, float]:
         """Convert screen coordinates to NDC"""
-        ndc_x = (2 * xpos / self.width) - 1
-        ndc_y = 1 - (2 * ypos / self.height)
+        # Account for framebuffer scaling
+        scale_x = self.fb_width / self.width if self.width != 0 else 1.0
+        scale_y = self.fb_height / self.height if self.height != 0 else 1.0
+
+        # Scale mouse position to framebuffer coordinates
+        fb_x = xpos * scale_x
+        fb_y = ypos * scale_y
+
+        ndc_x = (2 * fb_x / self.fb_width) - 1
+        ndc_y = 1 - (2 * fb_y / self.fb_height)
         logging.debug("Screen to normalized: (%f, %f) -> (%f, %f)", xpos, ypos, ndc_x, ndc_y)
         return ndc_x, ndc_y
 
@@ -34,7 +42,8 @@ class Camera:
         """Convert screen-space (pixels) into world-space coordinates"""
         ndc_x, ndc_y = self.screen_to_normalized(xpos, ypos)
 
-        aspect_ratio = self.width / self.height if self.height != 0 else 1.0
+        # Use framebuffer aspect ratio for consistency with projection matrix
+        aspect_ratio = self.fb_width / self.fb_height if self.fb_height != 0 else 1.0
 
         view_height = 2.0 / self.zoom_level
         view_width = view_height * aspect_ratio

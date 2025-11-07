@@ -44,6 +44,8 @@ class ImGuiUI:
         for mode_key, mode_name in DRAWING_MODES.items():
             if imgui.button(mode_name):
                 self.app.mode = mode_key
+                # Clear any in-progress shape editing when switching modes
+                self.app.shape_factory.clear_editing_state()
                 logging.info(f"Mode:{mode_name}")
 
         imgui.separator()
