@@ -23,7 +23,7 @@ from OpenGL.GL import (
 import glm
 import numpy as np
 from shader import ShaderProgram
-from shapes import Shape
+from shapes.base import Shape
 
 
 class Renderer:
