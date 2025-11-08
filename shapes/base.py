@@ -28,6 +28,16 @@ class Shape(ABC):
         """Check if a point is inside this shape"""
         pass
 
+    @abstractmethod
+    def get_area(self) -> float:
+        """Calculate the area of this shape"""
+        pass
+
+    @abstractmethod
+    def get_perimeter(self) -> float:
+        """Calculate the perimeter of this shape"""
+        pass
+
     def move(self, delta: Vec2) -> None:
         """Move this shape by the given delta"""
         for i in range(0, len(self.vertices), 2):

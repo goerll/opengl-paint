@@ -163,24 +163,19 @@ class InputManager:
         if action == glfw.PRESS:
             match key:
                 case glfw.KEY_S:
-                    self.app.mode = "select"
-                    logging.info("Mode:Select")
+                    self.app.set_mode("select")
 
                 case glfw.KEY_T:
-                    self.app.mode = "triangle"
-                    logging.info("Mode:Triangle")
+                    self.app.set_mode("triangle")
 
                 case glfw.KEY_C:
-                    self.app.mode = "circle"
-                    logging.info("Mode:Circle")
+                    self.app.set_mode("circle")
 
                 case glfw.KEY_R:
-                    self.app.mode = "rectangle"
-                    logging.info("Mode:Rectangle")
+                    self.app.set_mode("rectangle")
 
                 case glfw.KEY_P:
-                    self.app.mode = "polygon"
-                    logging.info("Mode:Polygon")
+                    self.app.set_mode("polygon")
 
                 case glfw.KEY_SPACE:
                     self.app.camera.reset()

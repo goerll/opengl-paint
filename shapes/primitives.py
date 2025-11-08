@@ -39,6 +39,18 @@ class Rectangle(Shape):
 
         return (x_min <= point.x <= x_max and y_min <= point.y <= y_max)
 
+    def get_area(self) -> float:
+        """Calculate rectangle area"""
+        width = abs(self.vertices[4] - self.vertices[0])
+        height = abs(self.vertices[5] - self.vertices[1])
+        return width * height
+
+    def get_perimeter(self) -> float:
+        """Calculate rectangle perimeter"""
+        width = abs(self.vertices[4] - self.vertices[0])
+        height = abs(self.vertices[5] - self.vertices[1])
+        return 2 * (width + height)
+
     
 
 class Triangle(Shape):
@@ -95,6 +107,21 @@ class Triangle(Shape):
         # Check if point is in triangle
         return (u >= 0) and (v >= 0) and (u + v <= 1)
 
+    def get_area(self) -> float:
+        """Calculate triangle area using side length"""
+        # Get side length from the triangle vertices
+        v1 = Vec2(self.vertices[0], self.vertices[1])
+        v2 = Vec2(self.vertices[2], self.vertices[3])
+        side_length = (v2 - v1).length() * 2  # Full side length
+        return (math.sqrt(3) / 4) * side_length * side_length
+
+    def get_perimeter(self) -> float:
+        """Calculate triangle perimeter (equilateral triangle)"""
+        v1 = Vec2(self.vertices[0], self.vertices[1])
+        v2 = Vec2(self.vertices[2], self.vertices[3])
+        side_length = (v2 - v1).length() * 2  # Full side length
+        return 3 * side_length
+
 
 class Circle(Shape):
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
@@ -134,6 +161,14 @@ class Circle(Shape):
         self.position = self.position + delta
         # Let base class handle vertex movement
         super().move(delta)
+
+    def get_area(self) -> float:
+        """Calculate circle area"""
+        return math.pi * self.radius * self.radius
+
+    def get_perimeter(self) -> float:
+        """Calculate circle circumference"""
+        return 2 * math.pi * self.radius
 
 
 class Polygon(Shape):
@@ -194,6 +229,44 @@ class Polygon(Shape):
             self.centroid_x += delta.x
             self.centroid_y += delta.y
 
+    def get_area(self) -> float:
+        """Calculate polygon area using Shoelace formula"""
+        if len(self.vertices) < 6:  # Need at least 3 vertices
+            return 0.0
+
+        area = 0.0
+        n = len(self.vertices) // 2
+
+        for i in range(n):
+            j = (i + 1) % n
+            x_i = self.vertices[2 * i]
+            y_i = self.vertices[2 * i + 1]
+            x_j = self.vertices[2 * j]
+            y_j = self.vertices[2 * j + 1]
+            area += x_i * y_j - x_j * y_i
+
+        return abs(area) / 2.0
+
+    def get_perimeter(self) -> float:
+        """Calculate polygon perimeter by summing edge lengths"""
+        if len(self.vertices) < 4:  # Need at least 2 vertices
+            return 0.0
+
+        perimeter = 0.0
+        n = len(self.vertices) // 2
+
+        for i in range(n):
+            j = (i + 1) % n
+            x_i = self.vertices[2 * i]
+            y_i = self.vertices[2 * i + 1]
+            x_j = self.vertices[2 * j]
+            y_j = self.vertices[2 * j + 1]
+
+            edge_length = math.sqrt((x_j - x_i)**2 + (y_j - y_i)**2)
+            perimeter += edge_length
+
+        return perimeter
+
 
 class Line(Shape):
     def __init__(self, points: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
@@ -213,3 +286,26 @@ class Line(Shape):
     def contains_point(self, point: Vec2) -> bool:
         # Line selection not implemented
         return False
+
+    def get_area(self) -> float:
+        """Lines have no area"""
+        return 0.0
+
+    def get_perimeter(self) -> float:
+        """Calculate line length as perimeter"""
+        if len(self.points) < 4:  # Need at least 2 points
+            return 0.0
+
+        length = 0.0
+        n = len(self.points) // 2
+
+        for i in range(n - 1):
+            x_i = self.points[2 * i]
+            y_i = self.points[2 * i + 1]
+            x_j = self.points[2 * (i + 1)]
+            y_j = self.points[2 * (i + 1) + 1]
+
+            segment_length = math.sqrt((x_j - x_i)**2 + (y_j - y_i)**2)
+            length += segment_length
+
+        return length

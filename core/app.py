@@ -41,7 +41,7 @@ class GraphicsApp:
         self.ui: ImGuiUI | None = None
 
         # Application state
-        self.mode: str = DrawingModes.RECTANGLE
+        self.mode: str = DrawingModes.SELECT
         self.objects: list[Any] = []  # List of shapes
         self.temp_shape: Any | None = None  # Temporary shape being drawn
 
@@ -55,6 +55,15 @@ class GraphicsApp:
     def get_selected_shapes(self) -> list[Any]:
         """Get selected shapes from selection system"""
         return self.selection_system.get_selected_shapes()
+
+    def set_mode(self, new_mode: str) -> None:
+        """Set a new drawing mode and clear any related state"""
+        self.mode = new_mode
+        # Clear any in-progress shape editing when switching modes
+        self.shape_factory.clear_editing_state()
+        # Clear selection when switching modes
+        self.selection_system.clear_selection()
+        logging.info(f"Mode:{new_mode}")
 
     def init_window(self) -> bool:
         """Initialize GLFW window and OpenGL context"""

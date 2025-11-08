@@ -60,6 +60,10 @@ class SelectionSystem:
         """Check if any shapes are selected"""
         return len(self.selected_shapes) == 0
 
+    def clear_selection(self) -> None:
+        """Public method to clear all selected shapes"""
+        self._clear_selection()
+
     def get_count(self) -> int:
         """Get number of selected shapes"""
         return len(self.selected_shapes)
