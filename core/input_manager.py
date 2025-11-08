@@ -99,7 +99,12 @@ class InputManager:
                 # Get current mouse position for the end point
                 wx, wy = self.app.camera.screen_to_world(*glfw.get_cursor_pos(self.window))
                 final_vertices = [current_vertices[0], current_vertices[1], wx, wy]
-                self.app.add_shape(final_vertices)
+                # Check if shift is pressed for aspect ratio constraint
+                shift_pressed = glfw.get_key(self.window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
+                # Create shape directly with shift state
+                shape = self.app.shape_factory.create_shape(self.app.mode, final_vertices, shift_pressed=shift_pressed)
+                if shape:
+                    self.app.objects.append(shape)
             self.app.shape_factory.finish_primitive_creation()
             self.app.temp_shape = None  # Clear preview after shape creation
         # Polygon mode handled separately
@@ -202,7 +207,9 @@ class InputManager:
             if len(current_vertices) >= 2:  # Have at least start point
                 # Create preview with start point and current mouse position
                 preview_vertices = [current_vertices[0], current_vertices[1], wx, wy]
-                self.app.temp_shape = self.app.shape_factory.create_shape(self.app.mode, preview_vertices)
+                # Check if shift is pressed for aspect ratio constraint
+                shift_pressed = glfw.get_key(self.window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
+                self.app.temp_shape = self.app.shape_factory.create_shape(self.app.mode, preview_vertices, shift_pressed=shift_pressed)
 
         elif self.app.mode == "polygon":
             # For polygons, create preview with existing vertices + current mouse position as preview point

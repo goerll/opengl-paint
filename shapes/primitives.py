@@ -6,11 +6,19 @@ import logging
 
 
 class Rectangle(Shape):
-    def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
+    def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0), shift_pressed: bool = False):
         super().__init__(vertices, color)
 
         x, y = vertices[0], vertices[1]
         width, height = vertices[2] - x, vertices[3] - y
+
+        # If shift is pressed, constrain to square (1:1 aspect ratio)
+        if shift_pressed:
+            # Use the larger dimension as the side length
+            side_length = max(abs(width), abs(height))
+            # Maintain the sign of the original width/height
+            width = side_length if width >= 0 else -side_length
+            height = side_length if height >= 0 else -side_length
 
         self.vertices = [
             x,
@@ -23,7 +31,7 @@ class Rectangle(Shape):
             y,
         ]
 
-        logging.info(f"Rectangle created with {len(self.vertices)//2} vertices.")
+        logging.info(f"{'Square' if shift_pressed else 'Rectangle'} created with {len(self.vertices)//2} vertices.")
 
     def get_vertices(self) -> list[float]:
         return self.vertices
@@ -54,30 +62,46 @@ class Rectangle(Shape):
     
 
 class Triangle(Shape):
-    def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
+    def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0), shift_pressed: bool = False):
         super().__init__(vertices, color)
         x, y = vertices[0], vertices[1]
         origin = Vec2(x, y)
         end = Vec2(vertices[2], vertices[3])
-        size = (end - origin).length() * 2
-        height = size * math.sqrt(3) / 2
+        self.shift_pressed = shift_pressed
         self.color = color
 
-        self.vertices = [
-            x,
-            y + height * 2 / 3,  # Top vertex
-            x - size / 2,
-            y - height / 3,  # Bottom left
-            x + size / 2,
-            y - height / 3,  # Bottom right
-        ]
+        if shift_pressed:
+            # With shift: create equilateral triangle
+            size = (end - origin).length() * 2
+            height = size * math.sqrt(3) / 2
+
+            self.vertices = [
+                x,
+                y + height * 2 / 3,  # Top vertex
+                x - size / 2,
+                y - height / 3,  # Bottom left
+                x + size / 2,
+                y - height / 3,  # Bottom right
+            ]
+            self.is_equilateral = True
+        else:
+            # Without shift: create right triangle with user-controlled width and height
+            width = end.x - origin.x
+            height = end.y - origin.y
+
+            self.vertices = [
+                x, y,              # Bottom left corner (origin)
+                x + width, y,      # Bottom right corner
+                x, y + height,     # Top left corner
+            ]
+            self.is_equilateral = False
 
     def get_vertices(self) -> list[float]:
         return self.vertices
 
     def contains_point(self, point: Vec2) -> bool:
         """Check if point is inside triangle using barycentric coordinates"""
-        # Get the three vertices of the equilateral triangle
+        # Get the three vertices of the triangle
         vertices = self.get_vertices()
         v1 = Vec2(vertices[0], vertices[1])
         v2 = Vec2(vertices[2], vertices[3])
@@ -108,42 +132,72 @@ class Triangle(Shape):
         return (u >= 0) and (v >= 0) and (u + v <= 1)
 
     def get_area(self) -> float:
-        """Calculate triangle area using side length"""
-        # Get side length from the triangle vertices
-        v1 = Vec2(self.vertices[0], self.vertices[1])  # Top vertex
-        v2 = Vec2(self.vertices[2], self.vertices[3])  # Bottom left vertex
-        side_length = (v2 - v1).length()  # This is already the full side length
-        return (math.sqrt(3) / 4) * side_length * side_length
+        """Calculate triangle area"""
+        if self.is_equilateral:
+            # Equilateral triangle area using side length
+            v1 = Vec2(self.vertices[0], self.vertices[1])  # Top vertex
+            v2 = Vec2(self.vertices[2], self.vertices[3])  # Bottom left vertex
+            side_length = (v2 - v1).length()
+            return (math.sqrt(3) / 4) * side_length * side_length
+        else:
+            # Right triangle area: 0.5 * base * height
+            # Using the Shoelace formula for general triangle area
+            v1 = Vec2(self.vertices[0], self.vertices[1])  # Bottom left
+            v2 = Vec2(self.vertices[2], self.vertices[3])  # Bottom right
+            v3 = Vec2(self.vertices[4], self.vertices[5])  # Top left
+            return abs((v1.x * (v2.y - v3.y) + v2.x * (v3.y - v1.y) + v3.x * (v1.y - v2.y)) / 2.0)
 
     def get_perimeter(self) -> float:
-        """Calculate triangle perimeter (equilateral triangle)"""
-        v1 = Vec2(self.vertices[0], self.vertices[1])  # Top vertex
-        v2 = Vec2(self.vertices[2], self.vertices[3])  # Bottom left vertex
-        side_length = (v2 - v1).length()  # This is already the full side length
-        return 3 * side_length
+        """Calculate triangle perimeter"""
+        # Calculate all three side lengths
+        v1 = Vec2(self.vertices[0], self.vertices[1])
+        v2 = Vec2(self.vertices[2], self.vertices[3])
+        v3 = Vec2(self.vertices[4], self.vertices[5])
+
+        side1 = (v2 - v1).length()
+        side2 = (v3 - v2).length()
+        side3 = (v1 - v3).length()
+
+        return side1 + side2 + side3
 
 
 class Circle(Shape):
-    def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
+    def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0), shift_pressed: bool = False):
         super().__init__(vertices, color)
         x, y = vertices[0], vertices[1]
         origin = Vec2(x, y)
         self.position = origin
         end = Vec2(vertices[2], vertices[3])
-        self.radius = (end - origin).length()
+
+        # Handle ellipse vs circle based on shift state
+        self.shift_pressed = shift_pressed
+
+        if shift_pressed:
+            # With shift: constrain to perfect circle
+            self.radius_x = (end - origin).length()
+            self.radius_y = self.radius_x
+            self.is_circle = True
+        else:
+            # Without shift: create ellipse
+            self.radius_x = abs(end.x - origin.x)
+            self.radius_y = abs(end.y - origin.y)
+            self.is_circle = False
+
         self.color = color
 
+        # Calculate segments based on the larger radius for smoothness
+        max_radius = max(self.radius_x, self.radius_y)
         min_segments = 50
         max_segments = 100
-        segments = int(self.radius * 100)
+        segments = int(max_radius * 100)
         self.segments = max(min_segments, min(max_segments, segments))
 
         self.vertices = []
 
         for i in range(self.segments):
             angle = 2.0 * math.pi * i / self.segments
-            vertex_x = x + self.radius * math.cos(angle)
-            vertex_y = y + self.radius * math.sin(angle)
+            vertex_x = x + self.radius_x * math.cos(angle)
+            vertex_y = y + self.radius_y * math.sin(angle)
             self.vertices.extend([vertex_x, vertex_y])
 
     def get_vertices(self) -> list[float]:
@@ -153,8 +207,15 @@ class Circle(Shape):
         return GL_LINE_LOOP
 
     def contains_point(self, point: Vec2) -> bool:
-        distance = (point - self.position).length()
-        return distance <= self.radius
+        if self.is_circle:
+            # Circle: simple distance check
+            distance = (point - self.position).length()
+            return distance <= self.radius_x  # radius_x == radius_y for circles
+        else:
+            # Ellipse: check if point satisfies ellipse equation
+            dx = (point.x - self.position.x) / self.radius_x if self.radius_x > 0 else float('inf')
+            dy = (point.y - self.position.y) / self.radius_y if self.radius_y > 0 else float('inf')
+            return dx * dx + dy * dy <= 1.0
 
     def move(self, delta: Vec2) -> None:
         """Move circle by delta and update position"""
@@ -163,12 +224,25 @@ class Circle(Shape):
         super().move(delta)
 
     def get_area(self) -> float:
-        """Calculate circle area"""
-        return math.pi * self.radius * self.radius
+        """Calculate circle or ellipse area"""
+        if self.is_circle:
+            # Circle area: π * r²
+            return math.pi * self.radius_x * self.radius_x
+        else:
+            # Ellipse area: π * a * b (where a and b are semi-major and semi-minor axes)
+            return math.pi * self.radius_x * self.radius_y
 
     def get_perimeter(self) -> float:
-        """Calculate circle circumference"""
-        return 2 * math.pi * self.radius
+        """Calculate circle or ellipse perimeter/circumference"""
+        if self.is_circle:
+            # Circle circumference: 2 * π * r
+            return 2 * math.pi * self.radius_x
+        else:
+            # Ellipse perimeter approximation (Ramanujan's formula)
+            # More accurate than simple approximation
+            a, b = self.radius_x, self.radius_y
+            h = ((a - b) ** 2) / ((a + b) ** 2)
+            return math.pi * (a + b) * (1 + (3 * h) / (10 + math.sqrt(4 - 3 * h)))
 
 
 class Polygon(Shape):

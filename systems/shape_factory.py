@@ -63,18 +63,18 @@ class ShapeFactory:
         """DEPRECATED: This method is no longer used - temp_shape preview is handled directly in input_manager"""
         pass
 
-    def create_shape(self, mode: str, vertices: List[float], color: Vec3 = None) -> Triangle | Circle | Rectangle | Polygon | None:
+    def create_shape(self, mode: str, vertices: List[float], color: Vec3 = None, shift_pressed: bool = False) -> Triangle | Circle | Rectangle | Polygon | None:
         """Create a shape based on the mode and vertices"""
         if color is None:
             color = Vec3(1.0, 1.0, 1.0)
 
         match mode:
             case "triangle":
-                return Triangle(vertices, color)
+                return Triangle(vertices, color, shift_pressed=shift_pressed)
             case "circle":
-                return Circle(vertices, color)
+                return Circle(vertices, color, shift_pressed=shift_pressed)
             case "rectangle":
-                return Rectangle(vertices, color)
+                return Rectangle(vertices, color, shift_pressed=shift_pressed)
             case "polygon":
                 return Polygon(vertices, color)
             case _:
