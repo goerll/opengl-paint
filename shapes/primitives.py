@@ -110,16 +110,16 @@ class Triangle(Shape):
     def get_area(self) -> float:
         """Calculate triangle area using side length"""
         # Get side length from the triangle vertices
-        v1 = Vec2(self.vertices[0], self.vertices[1])
-        v2 = Vec2(self.vertices[2], self.vertices[3])
-        side_length = (v2 - v1).length() * 2  # Full side length
+        v1 = Vec2(self.vertices[0], self.vertices[1])  # Top vertex
+        v2 = Vec2(self.vertices[2], self.vertices[3])  # Bottom left vertex
+        side_length = (v2 - v1).length()  # This is already the full side length
         return (math.sqrt(3) / 4) * side_length * side_length
 
     def get_perimeter(self) -> float:
         """Calculate triangle perimeter (equilateral triangle)"""
-        v1 = Vec2(self.vertices[0], self.vertices[1])
-        v2 = Vec2(self.vertices[2], self.vertices[3])
-        side_length = (v2 - v1).length() * 2  # Full side length
+        v1 = Vec2(self.vertices[0], self.vertices[1])  # Top vertex
+        v2 = Vec2(self.vertices[2], self.vertices[3])  # Bottom left vertex
+        side_length = (v2 - v1).length()  # This is already the full side length
         return 3 * side_length
 
 

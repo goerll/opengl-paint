@@ -8,11 +8,11 @@ SIDEBAR_WIDTH = 280
 
 # Drawing modes
 DRAWING_MODES = {
-    "select": "Select",
-    "triangle": "Triangle",
-    "circle": "Circle",
-    "rectangle": "Rectangle",
-    "polygon": "Polygon"
+    "select": "Select (S)",
+    "triangle": "Triangle (T)",
+    "circle": "Circle (C)",
+    "rectangle": "Rectangle (R)",
+    "polygon": "Polygon (P)"
 }
 
 
