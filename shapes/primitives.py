@@ -1,14 +1,13 @@
 from OpenGL.GL import GL_LINE_LOOP, GL_LINE_STRIP
 import math
 from geometry.vectors import Vec2, Vec3
+from geometry.transforms import AngleUtils
 from shapes.base import Shape
 import logging
 
 
 class Rectangle(Shape):
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0), shift_pressed: bool = False):
-        super().__init__(vertices, color)
-
         x, y = vertices[0], vertices[1]
         width, height = vertices[2] - x, vertices[3] - y
 
@@ -20,18 +19,17 @@ class Rectangle(Shape):
             width = side_length if width >= 0 else -side_length
             height = side_length if height >= 0 else -side_length
 
-        self.vertices = [
-            x,
-            y,
-            x,
-            y + height,
-            x + width,
-            y + height,
-            x + width,
-            y,
+        # Generate the full rectangle vertices
+        full_vertices = [
+            x,                    y,
+            x,                    y + height,
+            x + width,            y + height,
+            x + width,            y,
         ]
 
-        logging.info(f"{'Square' if shift_pressed else 'Rectangle'} created with {len(self.vertices)//2} vertices.")
+        # Initialize with the full rectangle vertices
+        super().__init__(full_vertices, color)
+        logging.info(f"{'Square' if shift_pressed else 'Rectangle'} created with {len(full_vertices)//2} vertices.")
 
     def get_vertices(self) -> list[float]:
         return self.vertices
@@ -49,12 +47,20 @@ class Rectangle(Shape):
 
     def get_area(self) -> float:
         """Calculate rectangle area"""
+        if len(self.vertices) < 8:
+            return 0.0
+
+        # For rectangles, vertices are stored as [x1, y1, x2, y2, x3, y3, x4, y4]
+        # We can calculate width and height from any two adjacent vertices
         width = abs(self.vertices[4] - self.vertices[0])
         height = abs(self.vertices[5] - self.vertices[1])
         return width * height
 
     def get_perimeter(self) -> float:
         """Calculate rectangle perimeter"""
+        if len(self.vertices) < 8:
+            return 0.0
+
         width = abs(self.vertices[4] - self.vertices[0])
         height = abs(self.vertices[5] - self.vertices[1])
         return 2 * (width + height)
@@ -63,7 +69,6 @@ class Rectangle(Shape):
 
 class Triangle(Shape):
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0), shift_pressed: bool = False):
-        super().__init__(vertices, color)
         x, y = vertices[0], vertices[1]
         origin = Vec2(x, y)
         end = Vec2(vertices[2], vertices[3])
@@ -75,13 +80,10 @@ class Triangle(Shape):
             size = (end - origin).length() * 2
             height = size * math.sqrt(3) / 2
 
-            self.vertices = [
-                x,
-                y + height * 2 / 3,  # Top vertex
-                x - size / 2,
-                y - height / 3,  # Bottom left
-                x + size / 2,
-                y - height / 3,  # Bottom right
+            full_vertices = [
+                x,                    y + height * 2 / 3,  # Top vertex
+                x - size / 2,         y - height / 3,      # Bottom left
+                x + size / 2,         y - height / 3,      # Bottom right
             ]
             self.is_equilateral = True
         else:
@@ -89,12 +91,15 @@ class Triangle(Shape):
             width = end.x - origin.x
             height = end.y - origin.y
 
-            self.vertices = [
-                x, y,              # Bottom left corner (origin)
-                x + width, y,      # Bottom right corner
-                x, y + height,     # Top left corner
+            full_vertices = [
+                x, y,                  # Bottom left corner (origin)
+                x + width, y,          # Bottom right corner
+                x, y + height,         # Top left corner
             ]
             self.is_equilateral = False
+
+        # Initialize with the full triangle vertices
+        super().__init__(full_vertices, color)
 
     def get_vertices(self) -> list[float]:
         return self.vertices
@@ -162,11 +167,14 @@ class Triangle(Shape):
 
 
 class Circle(Shape):
+    """
+    Circle and ellipse shape with proper transformation support.
+    Circles are rotationally symmetric, but we track rotation for consistency.
+    """
+
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0), shift_pressed: bool = False):
-        super().__init__(vertices, color)
         x, y = vertices[0], vertices[1]
-        origin = Vec2(x, y)
-        self.position = origin
+        self.position = Vec2(x, y)
         end = Vec2(vertices[2], vertices[3])
 
         # Handle ellipse vs circle based on shift state
@@ -174,13 +182,13 @@ class Circle(Shape):
 
         if shift_pressed:
             # With shift: constrain to perfect circle
-            self.radius_x = (end - origin).length()
+            self.radius_x = (end - self.position).length()
             self.radius_y = self.radius_x
             self.is_circle = True
         else:
             # Without shift: create ellipse
-            self.radius_x = abs(end.x - origin.x)
-            self.radius_y = abs(end.y - origin.y)
+            self.radius_x = abs(end.x - self.position.x)
+            self.radius_y = abs(end.y - self.position.y)
             self.is_circle = False
 
         self.color = color
@@ -192,13 +200,23 @@ class Circle(Shape):
         segments = int(max_radius * 100)
         self.segments = max(min_segments, min(max_segments, segments))
 
-        self.vertices = []
+        # Generate base vertices (unrotated circle/ellipse)
+        base_vertices = self._generate_base_vertices()
+
+        # Initialize the base class with the calculated vertices
+        super().__init__(base_vertices, color)
+
+    def _generate_base_vertices(self) -> list[float]:
+        """Generate the base vertices for this circle/ellipse"""
+        vertices = []
 
         for i in range(self.segments):
             angle = 2.0 * math.pi * i / self.segments
-            vertex_x = x + self.radius_x * math.cos(angle)
-            vertex_y = y + self.radius_y * math.sin(angle)
-            self.vertices.extend([vertex_x, vertex_y])
+            vertex_x = self.position.x + self.radius_x * math.cos(angle)
+            vertex_y = self.position.y + self.radius_y * math.sin(angle)
+            vertices.extend([vertex_x, vertex_y])
+
+        return vertices
 
     def get_vertices(self) -> list[float]:
         return self.vertices
@@ -217,11 +235,56 @@ class Circle(Shape):
             dy = (point.y - self.position.y) / self.radius_y if self.radius_y > 0 else float('inf')
             return dx * dx + dy * dy <= 1.0
 
+    def get_center(self) -> Vec2:
+        """Override center calculation for circles - use position"""
+        return self.position
+
+    def set_rotation(self, angle_degrees: float) -> None:
+        """
+        Override rotation for circles.
+        For perfect circles, rotation doesn't change the shape but we track it for consistency.
+        For ellipses, rotation is meaningful and should be applied.
+        """
+        if self.is_circle:
+            # Perfect circles are rotationally symmetric, but track the angle
+            self._rotation = AngleUtils.normalize_degrees(angle_degrees)
+            logging.debug(f"Circle rotation set to {self._rotation:.1f}° (no visual change for circles)")
+        else:
+            # Ellipses should rotate normally
+            super().set_rotation(angle_degrees)
+
+    def scale(self, scale_x: float, scale_y: float, center: Vec2 | None = None) -> None:
+        """
+        Override scaling for circles/ellipses to update radius properties.
+        """
+        if center is None:
+            center = self.position
+
+        # Update radius properties
+        self.radius_x *= abs(scale_x)
+        self.radius_y *= abs(scale_y)
+
+        # Regenerate base vertices with new radii
+        self._base_vertices = self._generate_base_vertices()
+
+        # Reapply rotation if it's an ellipse
+        if not self.is_circle and abs(self._rotation) > 0.001:
+            self._apply_rotation()
+        else:
+            self.vertices = self._base_vertices.copy()
+
+        logging.debug(f"Scaled Circle/Ellipse to radii ({self.radius_x:.1f}, {self.radius_y:.1f})")
+
     def move(self, delta: Vec2) -> None:
         """Move circle by delta and update position"""
         self.position = self.position + delta
-        # Let base class handle vertex movement
-        super().move(delta)
+
+        # Regenerate base vertices at new position
+        self._base_vertices = self._generate_base_vertices()
+
+        # Reapply rotation to maintain current orientation
+        self._apply_rotation()
+        logging.debug(f"Moved Circle to ({self.position.x:.1f}, {self.position.y:.1f})")
 
     def get_area(self) -> float:
         """Calculate circle or ellipse area"""
@@ -303,6 +366,12 @@ class Polygon(Shape):
             self.centroid_x += delta.x
             self.centroid_y += delta.y
 
+    def get_center(self) -> Vec2:
+        """Override center calculation for polygons - use centroid"""
+        if hasattr(self, 'centroid_x') and hasattr(self, 'centroid_y'):
+            return Vec2(self.centroid_x, self.centroid_y)
+        return super().get_center()
+
     def get_area(self) -> float:
         """Calculate polygon area using Shoelace formula"""
         if len(self.vertices) < 6:  # Need at least 3 vertices
@@ -343,16 +412,26 @@ class Polygon(Shape):
 
 
 class Line(Shape):
+    """
+    Line shape with support for rotation around its midpoint.
+    Lines rotate around their midpoint for natural behavior.
+    """
+
     def __init__(self, points: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)):
-        if len(points) >= 2:
+        # Calculate centroid for potential use
+        if len(points) >= 4:  # Need at least 2 points
             self.centroid_x = sum(points[i] for i in range(0, len(points), 2)) / (len(points) // 2)
             self.centroid_y = sum(points[i] for i in range(1, len(points), 2)) / (len(points) // 2)
+        else:
+            self.centroid_x = 0.0
+            self.centroid_y = 0.0
 
-        self.color = Vec3(1.0, 1.0, 1.0)
-        self.points = points
+        # Initialize with Shape base class
+        super().__init__(points, color)
+        self.points = points.copy()
 
     def get_vertices(self) -> list[float]:
-        return self.points
+        return self.vertices  # Use the transformed vertices from base class
 
     def get_draw_mode(self) -> int:
         return GL_LINE_STRIP
@@ -367,19 +446,33 @@ class Line(Shape):
 
     def get_perimeter(self) -> float:
         """Calculate line length as perimeter"""
-        if len(self.points) < 4:  # Need at least 2 points
+        if len(self.vertices) < 4:  # Need at least 2 points
             return 0.0
 
         length = 0.0
-        n = len(self.points) // 2
+        n = len(self.vertices) // 2
 
         for i in range(n - 1):
-            x_i = self.points[2 * i]
-            y_i = self.points[2 * i + 1]
-            x_j = self.points[2 * (i + 1)]
-            y_j = self.points[2 * (i + 1) + 1]
+            x_i = self.vertices[2 * i]
+            y_i = self.vertices[2 * i + 1]
+            x_j = self.vertices[2 * (i + 1)]
+            y_j = self.vertices[2 * (i + 1) + 1]
 
             segment_length = math.sqrt((x_j - x_i)**2 + (y_j - y_i)**2)
             length += segment_length
 
         return length
+
+    def move(self, delta: Vec2) -> None:
+        """Move line by delta and update centroid"""
+        super().move(delta)
+        if hasattr(self, 'centroid_x') and hasattr(self, 'centroid_y'):
+            self.centroid_x += delta.x
+            self.centroid_y += delta.y
+        self.points = self.vertices.copy()  # Keep points in sync
+
+    def get_center(self) -> Vec2:
+        """Override center calculation for lines - use centroid"""
+        if hasattr(self, 'centroid_x') and hasattr(self, 'centroid_y'):
+            return Vec2(self.centroid_x, self.centroid_y)
+        return super().get_center()

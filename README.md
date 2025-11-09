@@ -2,6 +2,37 @@
 
 A 2D drawing application built with Python, OpenGL, and GLFW that allows users to create and manipulate various geometric shapes through both keyboard shortcuts and an ImGui interface.
 
+# Assignment Items Completed
+- Draw graphical objects
+   - [x] Non-convex polygons
+   - [x] Circles
+   - [x] Rectangles
+   - [x] (Optional) other shapes such as stars, elipses and regular polygons
+
+- Select graphical objects
+   - [x] Implement point-based object selection algorithm
+   - [x] Multiple object selection
+   - [ ] (Optional) Draw bounding boxes and selection handlers for selected objects
+
+- Interactively manipulate graphical objects
+   - [] Remove objects (use key d)
+   - [ ] Change size
+   - [x] Rotation
+   - [x] Translation
+   - [x] (Optional) Uniform scaling (without deforming the object) and non-uniform scaling (shifting while creating object)
+   - [ ] (Optional) Selection of rotation point (center, bounding box corner, arbitrary point)
+
+- Modify properties and perform queries
+   - [x] Query: area, perimeter (sidebar)
+   - [x] Attributes: color (pre-configured palette, keyboard input, or color picker component)
+   - [ ] (Optional) Solid color fill
+   - [ ] (Optional) Change outline line type
+
+- Use visualization resources
+   - [x] Zoom in/out
+   - [x] Pan
+   - [ ] (Optional) Zoom window
+
 ## Features
 
 - **Shape Creation**: Triangle, Circle, Rectangle, Polygon drawing tools

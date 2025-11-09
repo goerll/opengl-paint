@@ -67,3 +67,37 @@ class SelectionSystem:
     def get_count(self) -> int:
         """Get number of selected shapes"""
         return len(self.selected_shapes)
+
+    def rotate_selected_shapes(self, angle_degrees: float) -> None:
+        """Rotate all selected shapes by the given angle"""
+        if not self.selected_shapes:
+            return
+
+        for shape in self.selected_shapes:
+            current_rotation = getattr(shape, 'rotation', 0.0)
+            new_rotation = current_rotation + angle_degrees
+            shape.set_rotation(new_rotation)
+
+        logging.info(f"Rotated {len(self.selected_shapes)} shape(s) by {angle_degrees:.1f}°")
+
+    def reset_rotation_for_selected(self) -> None:
+        """Reset rotation for all selected shapes"""
+        if not self.selected_shapes:
+            return
+
+        for shape in self.selected_shapes:
+            shape.set_rotation(0.0)
+
+        logging.info(f"Reset rotation for {len(self.selected_shapes)} shape(s)")
+
+    def get_rotation_info(self) -> dict:
+        """Get rotation information for selected shapes"""
+        if not self.selected_shapes:
+            return {"count": 0, "has_rotation": False}
+
+        rotations = [getattr(shape, 'rotation', 0.0) for shape in self.selected_shapes]
+        return {
+            "count": len(self.selected_shapes),
+            "has_rotation": any(abs(r) > 0.001 for r in rotations),
+            "rotations": rotations
+        }

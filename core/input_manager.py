@@ -80,7 +80,7 @@ class InputManager:
                 self._handle_left_release()
 
         elif button == glfw.MOUSE_BUTTON_RIGHT:
-            self._handle_right_click(action)
+            self._handle_right_click(action, click_point)
 
     def _handle_left_press(self, click_point: Vec2) -> None:
         """Handle left mouse press"""
@@ -120,16 +120,17 @@ class InputManager:
             self.app.temp_shape = None  # Clear preview after shape creation
         # Polygon mode handled separately
 
-    def _handle_right_click(self, action: int) -> None:
+    def _handle_right_click(self, action: int, click_point: Vec2) -> None:
         """Handle right mouse button for panning"""
         if action == glfw.PRESS:
-            wx, wy = self.app.camera.screen_to_world(*glfw.get_cursor_pos(self.window))
+            # Start panning behavior
             self.panning = True
-            logging.info("Started panning at (%.2f, %.2f)", wx, wy)
+            logging.info("Started panning at (%.2f, %.2f)", click_point.x, click_point.y)
+
         elif action == glfw.RELEASE:
-            wx, wy = self.app.camera.screen_to_world(*glfw.get_cursor_pos(self.window))
-            self.panning = False
-            logging.info("Stopped panning at (%.2f, %.2f)", wx, wy)
+            if self.panning:
+                self.panning = False
+                logging.info("Stopped panning")
 
     def cursor_pos_callback(self, window: Any, xpos: float, ypos: float) -> None:
         """Handle cursor movement"""

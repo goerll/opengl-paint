@@ -72,7 +72,6 @@ class ImGuiUI:
         imgui.text(f"Zoom: {self.app.camera.zoom_level:.2f}")
         imgui.text(f"Objects: {len(self.app.objects)}")
         imgui.text(f"Selected: {len(self.app.get_selected_shapes())}")
-        imgui.text(f"Mode: {self.app.mode}")
 
         imgui.end()
 
@@ -105,26 +104,21 @@ class ImGuiUI:
             imgui.text(f"Total Area: {total_area:.2f}")
             imgui.text(f"Total Perimeter: {total_perimeter:.2f}")
 
-        # Color selection section
-        imgui.separator()
-        imgui.text("Color")
+        
+        # Rotation controls
 
-        # Show current color info for single selection
-        if len(selected_shapes) == 1:
-            current_color = selected_shapes[0].get_color()
-            imgui.text(f"Current: RGB({current_color.r:.2f}, {current_color.g:.2f}, {current_color.b:.2f})")
-        else:
-            imgui.text(f"Selected: {len(selected_shapes)} shapes")
 
         # Color picker
         if selected_shapes:
+            imgui.separator()
+
             # Get the current color from the first selected shape
             current_color = selected_shapes[0].get_color()
             # Convert Vec3 to ImVec4 (add alpha = 1.0)
             color_imvec = imgui.ImVec4(current_color.r, current_color.g, current_color.b, 1.0)
 
             # Create color picker with additional flags for better interaction
-            changed, new_color = imgui.color_picker4("Shape Color", color_imvec,
+            changed, new_color = imgui.color_picker4("Color", color_imvec,
                                                    imgui.ColorEditFlags_.no_alpha |
                                                    imgui.ColorEditFlags_.display_rgb |
                                                    imgui.ColorEditFlags_.no_side_preview |
@@ -137,3 +131,21 @@ class ImGuiUI:
                 for shape in selected_shapes:
                     shape.color = new_color_vec3
                 logging.info(f"Changed color of {len(selected_shapes)} shape(s) to RGB({new_color.x:.2f}, {new_color.y:.2f}, {new_color.z:.2f})")
+        
+
+        if selected_shapes:
+            imgui.separator()
+            imgui.text("Rotation")
+            # Get current rotation from first selected shape
+            current_rotation = selected_shapes[0].get_rotation()
+
+            # Rotation slider (180 to -180 degrees for intuitive UX)
+            changed, new_rotation = imgui.slider_float(
+                "Rotation", current_rotation, 180.0, -180.0, "%.1f°"
+            )
+
+            if changed:
+                # Apply rotation to all selected shapes
+                for shape in selected_shapes:
+                    shape.set_rotation(new_rotation)
+                logging.info(f"Rotated {len(selected_shapes)} shape(s) to {new_rotation:.1f}°")
