@@ -157,7 +157,11 @@ class GraphicsApp:
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
 
+            # Start new ImGui frame
             imgui.new_frame()
+
+            # Process ImGui inputs AFTER poll_events but before UI rendering
+            # This ensures proper mouse capture for widgets like color picker
             self.imgui_impl.process_inputs()
 
             # Clear temporary shape when not editing (temp_shape is now updated directly in mouse movement)

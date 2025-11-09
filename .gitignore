@@ -2,3 +2,4 @@ venv/
 __pycache__/
 imgui.ini
 CLAUDE.md
+.claude/

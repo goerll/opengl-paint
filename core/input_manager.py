@@ -46,15 +46,19 @@ class InputManager:
         """Handle mouse button events"""
         from imgui_bundle import imgui
 
-        # Check if ImGui wants to capture the mouse input first
+        # Update ImGui IO first
         io = imgui.get_io()
         xpos, ypos = glfw.get_cursor_pos(window)
         io.add_mouse_pos_event(xpos, ypos)
         io.add_mouse_button_event(button, action == glfw.PRESS)
+
+        # Process ImGui input first - this is critical for widgets like color picker
         self.imgui_impl.mouse_button_callback(window, button, action, mods)
 
-        # Only process viewport input if ImGui doesn't want it
-        if io.want_capture_mouse:
+        # Check if ImGui wants to capture the mouse input AFTER processing ImGui callback
+        # Also check if we're clicking within the sidebar area to be extra safe
+        sidebar_width = 280  # Match SIDEBAR_WIDTH in ui/imgui_ui.py
+        if io.want_capture_mouse or xpos < sidebar_width:
             return
 
         # Convert to world coordinates and set editing origin only for viewport clicks
@@ -125,7 +129,9 @@ class InputManager:
         from imgui_bundle import imgui
 
         # Check if ImGui wants to capture the mouse input first
-        if imgui.get_io().want_capture_mouse:
+        # Also check if we're within the sidebar area
+        sidebar_width = 280  # Match SIDEBAR_WIDTH in ui/imgui_ui.py
+        if imgui.get_io().want_capture_mouse or xpos < sidebar_width:
             return
 
         wx, wy = self.app.camera.screen_to_world(xpos, ypos)
