@@ -46,9 +46,11 @@ class InputManager:
         """Handle mouse button events"""
         from imgui_bundle import imgui
 
-        # Update ImGui IO first
-        io = imgui.get_io()
+        # Get cursor position first
         xpos, ypos = glfw.get_cursor_pos(window)
+
+        # Update ImGui IO
+        io = imgui.get_io()
         io.add_mouse_pos_event(xpos, ypos)
         io.add_mouse_button_event(button, action == glfw.PRESS)
 
@@ -56,9 +58,14 @@ class InputManager:
         self.imgui_impl.mouse_button_callback(window, button, action, mods)
 
         # Check if ImGui wants to capture the mouse input AFTER processing ImGui callback
-        # Also check if we're clicking within the sidebar area to be extra safe
+        # ImGui gets priority for any interaction it wants
+        if io.want_capture_mouse:
+            return
+
+        # Additional safety check: block viewport input if we're in the sidebar area
+        # but ImGui doesn't explicitly want capture (e.g., clicking on empty sidebar space)
         sidebar_width = 280  # Match SIDEBAR_WIDTH in ui/imgui_ui.py
-        if io.want_capture_mouse or xpos < sidebar_width:
+        if xpos < sidebar_width:
             return
 
         # Convert to world coordinates and set editing origin only for viewport clicks
@@ -128,10 +135,16 @@ class InputManager:
         """Handle cursor movement"""
         from imgui_bundle import imgui
 
-        # Check if ImGui wants to capture the mouse input first
-        # Also check if we're within the sidebar area
+        # Prioritize ImGui's want_capture_mouse - if ImGui wants mouse input, let it handle it
+        if imgui.get_io().want_capture_mouse:
+            # Update ImGui cursor position for proper widget interaction
+            imgui.get_io().add_mouse_pos_event(xpos, ypos)
+            return
+
+        # Only block cursor movement for viewport if we're in the sidebar area
+        # but ImGui doesn't want the mouse (e.g., just hovering, not interacting)
         sidebar_width = 280  # Match SIDEBAR_WIDTH in ui/imgui_ui.py
-        if imgui.get_io().want_capture_mouse or xpos < sidebar_width:
+        if xpos < sidebar_width:
             return
 
         wx, wy = self.app.camera.screen_to_world(xpos, ypos)
