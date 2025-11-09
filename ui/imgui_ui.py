@@ -2,10 +2,8 @@ from imgui_bundle import imgui
 from typing import Any
 import logging
 from geometry.vectors import Vec3
-
-# UI Constants
-SIDEBAR_PADDING = 10
-SIDEBAR_WIDTH = 280
+from config.constants import UIConfig, ColorPalette
+from ui.imgui_helpers import ImGuiHelpers
 
 # Drawing modes
 DRAWING_MODES = {
@@ -27,9 +25,9 @@ class ImGuiUI:
 
     def _build_sidebar_ui(self) -> None:
         """Build the main sidebar UI"""
-        imgui.set_next_window_pos(imgui.ImVec2(SIDEBAR_PADDING, SIDEBAR_PADDING), imgui.Cond_.always)
+        imgui.set_next_window_pos(imgui.ImVec2(UIConfig.SIDEBAR_PADDING, UIConfig.SIDEBAR_PADDING), imgui.Cond_.always)
         imgui.set_next_window_size(
-            imgui.ImVec2(SIDEBAR_WIDTH, self.app.camera.fb_height - 2 * SIDEBAR_PADDING),
+            imgui.ImVec2(UIConfig.SIDEBAR_WIDTH, self.app.camera.fb_height - 2 * UIConfig.SIDEBAR_PADDING),
             imgui.Cond_.always
         )
         flags = (
@@ -43,23 +41,8 @@ class ImGuiUI:
 
         # Mode selection buttons
         for mode_key, mode_name in DRAWING_MODES.items():
-            # Highlight active mode with different color
-            if self.app.mode == mode_key:
-                # Active mode - use a more prominent color (blue)
-                imgui.push_style_color(imgui.Col_.button, imgui.ImVec4(0.2, 0.5, 0.8, 1.0))
-                imgui.push_style_color(imgui.Col_.button_hovered, imgui.ImVec4(0.3, 0.6, 0.9, 1.0))
-                imgui.push_style_color(imgui.Col_.button_active, imgui.ImVec4(0.4, 0.7, 1.0, 1.0))
-            else:
-                # Inactive mode - use default gray colors
-                imgui.push_style_color(imgui.Col_.button, imgui.ImVec4(0.6, 0.6, 0.6, 1.0))
-                imgui.push_style_color(imgui.Col_.button_hovered, imgui.ImVec4(0.7, 0.7, 0.7, 1.0))
-                imgui.push_style_color(imgui.Col_.button_active, imgui.ImVec4(0.8, 0.8, 0.8, 1.0))
-
-            if imgui.button(mode_name):
+            if ImGuiHelpers.mode_button(mode_name, self.app.mode == mode_key):
                 self.app.set_mode(mode_key)
-
-            # Pop the style colors
-            imgui.pop_style_color(3)
 
         imgui.separator()
 
@@ -95,22 +78,22 @@ class ImGuiUI:
             # Single selection - show detailed info
             shape = selected_shapes[0]
             shape_type = type(shape).__name__
-            imgui.text(f"Type: {shape_type}")
-            imgui.text(f"Area: {shape.get_area():.2f}")
-            imgui.text(f"Perimeter: {shape.get_perimeter():.2f}")
+            ImGuiHelpers.info_row("Type", shape_type)
+            ImGuiHelpers.info_row("Area", f"{shape.get_area():.2f}")
+            ImGuiHelpers.info_row("Perimeter", f"{shape.get_perimeter():.2f}")
         else:
             # Multiple selection - show totals
-            imgui.text(f"Objects: {len(selected_shapes)}")
-            imgui.text(f"Total Area: {total_area:.2f}")
-            imgui.text(f"Total Perimeter: {total_perimeter:.2f}")
+            ImGuiHelpers.info_row("Objects", str(len(selected_shapes)))
+            ImGuiHelpers.info_row("Total Area", f"{total_area:.2f}")
+            ImGuiHelpers.info_row("Total Perimeter", f"{total_perimeter:.2f}")
 
-        
+
         # Rotation controls
 
 
         # Color picker
         if selected_shapes:
-            imgui.separator()
+            ImGuiHelpers.section_header("Color")
 
             # Get the current color from the first selected shape
             current_color = selected_shapes[0].get_color()
@@ -118,11 +101,11 @@ class ImGuiUI:
             color_imvec = imgui.ImVec4(current_color.r, current_color.g, current_color.b, 1.0)
 
             # Create color picker with additional flags for better interaction
-            changed, new_color = imgui.color_picker4("Color", color_imvec,
-                                                   imgui.ColorEditFlags_.no_alpha |
-                                                   imgui.ColorEditFlags_.display_rgb |
-                                                   imgui.ColorEditFlags_.no_side_preview |
-                                                   imgui.ColorEditFlags_.no_small_preview)
+            color_flags = 0
+            for flag in UIConfig.COLOR_PICKER_FLAGS:
+                color_flags |= getattr(imgui.ColorEditFlags_, flag)
+
+            changed, new_color = imgui.color_picker4("Color", color_imvec, color_flags)
 
             if changed:
                 # Convert ImVec4 back to Vec3 (ImVec4 uses x,y,z,w attributes)
@@ -134,14 +117,13 @@ class ImGuiUI:
         
 
         if selected_shapes:
-            imgui.separator()
-            imgui.text("Rotation")
+            ImGuiHelpers.section_header("Rotation")
             # Get current rotation from first selected shape
             current_rotation = selected_shapes[0].get_rotation()
 
             # Rotation slider (180 to -180 degrees for intuitive UX)
             changed, new_rotation = imgui.slider_float(
-                "Rotation", current_rotation, 180.0, -180.0, "%.1f°"
+                "Rotation", current_rotation, UIConfig.ROTATION_MAX, UIConfig.ROTATION_MIN, "%.1f°"
             )
 
             if changed:

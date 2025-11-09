@@ -2,6 +2,7 @@ from OpenGL.GL import GL_LINE_LOOP, GL_LINE_STRIP
 import math
 from geometry.vectors import Vec2, Vec3
 from geometry.transforms import AngleUtils
+from geometry.vertex_generator import VertexGenerator
 from shapes.base import Shape
 import logging
 
@@ -19,13 +20,10 @@ class Rectangle(Shape):
             width = side_length if width >= 0 else -side_length
             height = side_length if height >= 0 else -side_length
 
-        # Generate the full rectangle vertices
-        full_vertices = [
-            x,                    y,
-            x,                    y + height,
-            x + width,            y + height,
-            x + width,            y,
-        ]
+        # Generate the full rectangle vertices using VertexGenerator
+        min_bound = Vec2(x, y)
+        max_bound = Vec2(x + width, y + height)
+        full_vertices = VertexGenerator.generate_rectangle(min_bound, max_bound)
 
         # Initialize with the full rectangle vertices
         super().__init__(full_vertices, color)

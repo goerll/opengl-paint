@@ -34,6 +34,27 @@ class Vec2:
         """Calculate the length (magnitude) of the vector"""
         return (self.x**2 + self.y**2) ** 0.5
 
+    def distance_to(self, other: 'Vec2') -> float:
+        """Calculate the distance to another Vec2"""
+        return (other - self).length()
+
+    def distance_squared_to(self, other: 'Vec2') -> float:
+        """Calculate the squared distance to another Vec2 (faster, no sqrt)"""
+        dx = other.x - self.x
+        dy = other.y - self.y
+        return dx * dx + dy * dy
+
+    def normalized(self) -> 'Vec2':
+        """Return a normalized copy of this vector"""
+        length = self.length()
+        if length == 0:
+            return Vec2(0, 0)
+        return Vec2(self.x / length, self.y / length)
+
+    def lerp(self, other: 'Vec2', t: float) -> 'Vec2':
+        """Linear interpolation between this vector and another"""
+        return self + (other - self) * t
+
     def __repr__(self) -> str:
         return f"Vec2({self.x}, {self.y})"
 

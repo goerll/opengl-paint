@@ -2,6 +2,8 @@ import glfw
 from typing import Any, Callable
 from geometry.vectors import Vec2
 import logging
+from config.constants import UIConfig
+from core.input_filter import InputFilter
 
 
 class InputManager:
@@ -59,13 +61,7 @@ class InputManager:
 
         # Check if ImGui wants to capture the mouse input AFTER processing ImGui callback
         # ImGui gets priority for any interaction it wants
-        if io.want_capture_mouse:
-            return
-
-        # Additional safety check: block viewport input if we're in the sidebar area
-        # but ImGui doesn't explicitly want capture (e.g., clicking on empty sidebar space)
-        sidebar_width = 280  # Match SIDEBAR_WIDTH in ui/imgui_ui.py
-        if xpos < sidebar_width:
+        if InputFilter.should_block_mouse_input(xpos):
             return
 
         # Convert to world coordinates and set editing origin only for viewport clicks
@@ -137,15 +133,9 @@ class InputManager:
         from imgui_bundle import imgui
 
         # Prioritize ImGui's want_capture_mouse - if ImGui wants mouse input, let it handle it
-        if imgui.get_io().want_capture_mouse:
+        if InputFilter.should_block_mouse_input(xpos):
             # Update ImGui cursor position for proper widget interaction
             imgui.get_io().add_mouse_pos_event(xpos, ypos)
-            return
-
-        # Only block cursor movement for viewport if we're in the sidebar area
-        # but ImGui doesn't want the mouse (e.g., just hovering, not interacting)
-        sidebar_width = 280  # Match SIDEBAR_WIDTH in ui/imgui_ui.py
-        if xpos < sidebar_width:
             return
 
         wx, wy = self.app.camera.screen_to_world(xpos, ypos)
@@ -172,7 +162,7 @@ class InputManager:
         from imgui_bundle import imgui
 
         # Check if ImGui wants to capture the mouse input first
-        if imgui.get_io().want_capture_mouse:
+        if InputFilter.should_block_mouse_input():
             return
 
         xpos, ypos = glfw.get_cursor_pos(window)
@@ -182,7 +172,7 @@ class InputManager:
         """Handle keyboard input"""
         from imgui_bundle import imgui
 
-        if imgui.get_io().want_capture_keyboard:
+        if InputFilter.should_block_keyboard_input():
             return
 
         if action == glfw.PRESS:
