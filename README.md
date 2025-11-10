@@ -26,19 +26,19 @@ A 2D drawing application built with Python, OpenGL, and GLFW that allows users t
    - [x] Non-convex polygons
    - [x] Circles
    - [x] Rectangles
-   - [x] (Optional) other shapes such as stars, elipses and regular polygons (elipses are drawn in circle mode without <kbd>SHIFT</shift>)
+   - [x] (Optional) other shapes such as stars, elipses and regular polygons (elipses are drawn in circle mode without <kbd>SHIFT</kbd>)
 
 - Select graphical objects
-   - [x] Implement point-based object selection algorithm
-   - [x] Multiple object selection (<SHIFT> while selecting)
+   - [x] Implement point-based object selection algorithm (used for polygons, in /shapes/primitives.py)
+   - [x] Multiple object selection (<kbd>SHIFT</kbd> while selecting)
    - [ ] (Optional) Draw bounding boxes and selection handlers for selected objects
 
 - Interactively manipulate graphical objects
    - [x] Remove objects (<kbd>d</kbd> while selecting)
    - [ ] Change size
    - [x] Rotation (sidebar)
-   - [x] Translation (dragging in select mode)
-   - [x] (Optional) Uniform scaling (without deforming the object) and non-uniform scaling (<kbd>SHIFT</kbd> while creating object)
+   - [x] Translation (clicking and dragging in select mode)
+   - [x] (Optional) Uniform scaling (without deforming the object) and non-uniform scaling (<kbd>SHIFT</kbd> while creating object for uniform scaling)
    - [ ] (Optional) Selection of rotation point (center, bounding box corner, arbitrary point)
 
 - Modify properties and perform queries
