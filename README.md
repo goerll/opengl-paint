@@ -35,7 +35,7 @@ A 2D drawing application built with Python, OpenGL, and GLFW that allows users t
 
 - Interactively manipulate graphical objects
    - [x] Remove objects (<kbd>d</kbd> while selecting)
-   - [ ] Change size
+   - [x] Change size
    - [x] Rotation (sidebar)
    - [x] Translation (clicking and dragging in select mode)
    - [x] (Optional) Uniform scaling (without deforming the object) and non-uniform scaling (<kbd>SHIFT</kbd> while creating object for uniform scaling)
