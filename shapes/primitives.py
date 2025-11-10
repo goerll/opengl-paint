@@ -4,7 +4,6 @@ import math
 from OpenGL.GL import GL_LINE_LOOP, GL_LINE_STRIP
 
 from geometry.transforms import AngleUtils
-from geometry.vertex_generator import VertexGenerator
 from geometry.vectors import Vec2, Vec3
 from shapes.base import Shape
 
@@ -20,9 +19,13 @@ class Rectangle(Shape):
             width = side_length if width >= 0 else -side_length
             height = side_length if height >= 0 else -side_length
 
-        min_bound = Vec2(x, y)
-        max_bound = Vec2(x + width, y + height)
-        full_vertices = VertexGenerator.generate_rectangle(min_bound, max_bound)
+        # Generate rectangle vertices inline
+        full_vertices = [
+            x, y,           # Bottom left
+            x, y + height,  # Top left
+            x + width, y + height,  # Top right
+            x + width, y    # Bottom right
+        ]
 
         super().__init__(full_vertices, color)
         shape_type = "Square" if shift_pressed else "Rectangle"
@@ -62,7 +65,6 @@ class Rectangle(Shape):
         return 2 * (width + height)
 
     
-
 class Triangle(Shape):
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0), shift_pressed: bool = False):
         x, y = vertices[0], vertices[1]
