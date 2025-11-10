@@ -1,11 +1,15 @@
-import glfw
+import logging
 from typing import Any, List
+
+import glfw
+
 from geometry.vectors import Vec2, Vec3
 from shapes.primitives import Triangle, Circle, Rectangle, Polygon
-import logging
 
 
 class ShapeFactory:
+    """Factory class for creating and managing shapes during user interaction."""
+
     def __init__(self):
         self.editing_shape: bool = False
         self.vertices: List[float] = []
@@ -13,58 +17,47 @@ class ShapeFactory:
         self._final_polygon_vertices: List[float] = []
 
     def start_primitive_creation(self, click_point: Vec2) -> None:
-        """Start creating a primitive shape"""
+        """Start creating a primitive shape."""
         self.editing_shape = True
         self.vertices = [click_point.x, click_point.y]
-        # Initial shape will be created by the main app
 
     def finish_primitive_creation(self) -> None:
-        """Finish creating a primitive shape"""
+        """Finish creating a primitive shape."""
         self.editing_shape = False
         self.vertices.clear()
-        logging.info(f"Shape creation finished.")
+        logging.info("Shape creation finished.")
 
     def handle_polygon_creation(self, window: Any, click_point: Vec2) -> bool:
         """Handle polygon vertex addition and completion. Returns True if polygon was completed."""
         shift_pressed = glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
 
-        # Remove preview point if it exists (odd number of coordinates)
         if len(self.vertices) % 2 != 0:
             self.vertices = self.vertices[:-2]
 
-        # Add the new vertex
-        if not self.vertices:  # First vertex
+        if not self.vertices:
             self.editing_shape = True
             self.vertices.extend([click_point.x, click_point.y])
-        else:  # Additional vertices
+        else:
             self.vertices.extend([click_point.x, click_point.y])
 
         logging.info("Added vertex (%.2f, %.2f) to polygon", click_point.x, click_point.y)
 
-        # Complete polygon if shift pressed
-        if shift_pressed and len(self.vertices) >= 6:  # At least 3 vertices
+        if shift_pressed and len(self.vertices) >= 6:
             self.editing_shape = False
-            # Remove any preview point before finalizing
             if len(self.vertices) % 2 != 0:
                 self.vertices = self.vertices[:-2]
 
             vertex_count = len(self.vertices) // 2
-            # Store vertices before clearing for shape creation
             final_vertices = self.vertices.copy()
             self.vertices.clear()
             logging.info(f"Polygon created with {vertex_count} vertices")
-            # Store the final vertices for the caller to create the shape
             self._final_polygon_vertices = final_vertices
             return True
 
         return False
 
-    def update_shape_drawing(self, wx: float, wy: float) -> None:
-        """DEPRECATED: This method is no longer used - temp_shape preview is handled directly in input_manager"""
-        pass
-
     def create_shape(self, mode: str, vertices: List[float], color: Vec3 = None, shift_pressed: bool = False) -> Triangle | Circle | Rectangle | Polygon | None:
-        """Create a shape based on the mode and vertices"""
+        """Create a shape based on the mode and vertices."""
         if color is None:
             color = Vec3(1.0, 1.0, 1.0)
 

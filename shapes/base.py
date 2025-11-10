@@ -6,21 +6,12 @@ import logging
 
 
 class Shape(ABC):
-    """
-    Abstract base class for all drawable shapes with support for transformations.
-    Follows clean architecture principles with clear separation of concerns.
-    """
+    """Abstract base class for all drawable shapes with support for transformations"""
 
     def __init__(self, vertices: list[float], color: Vec3 = Vec3(1.0, 1.0, 1.0)) -> None:
-        """
-        Initialize a shape with vertices and color.
-
-        Args:
-            vertices: List of vertex coordinates [x1, y1, x2, y2, ...]
-            color: RGB color vector
-        """
-        self._base_vertices: list[float] = vertices.copy()  # Original, untransformed vertices
-        self.vertices: list[float] = vertices.copy()  # Current transformed vertices
+        """Initialize a shape with vertices and color"""
+        self._base_vertices: list[float] = vertices.copy()
+        self.vertices: list[float] = vertices.copy()
         self.color = color
         self.thickness = 1
         self._rotation: float = 0.0  # Rotation angle in degrees, normalized to [-180, 180]
@@ -68,32 +59,18 @@ class Shape(ABC):
         pass
 
     def set_rotation(self, angle_degrees: float) -> None:
-        """
-        Set the rotation angle for this shape.
-
-        Args:
-            angle_degrees: Rotation angle in degrees (will be normalized to [-180, 180])
-        """
+        """Set the rotation angle for this shape (normalized to [-180, 180])"""
         normalized_angle = AngleUtils.normalize_degrees(angle_degrees)
         self._rotation = normalized_angle
         self._apply_rotation()
         logging.debug(f"Set rotation to {normalized_angle:.1f}° for {type(self).__name__}")
 
     def get_center(self) -> Vec2:
-        """
-        Get the geometric center of this shape.
-        Can be overridden by subclasses for custom center calculations.
-        """
+        """Get the geometric center of this shape (can be overridden by subclasses)"""
         return calculate_geometric_center(self._base_vertices)
 
     def move(self, delta: Vec2) -> None:
-        """
-        Move this shape by the given delta vector.
-
-        Args:
-            delta: Movement vector
-        """
-        # Update both base and current vertices
+        """Move this shape by the given delta vector"""
         for i in range(0, len(self._base_vertices), 2):
             self._base_vertices[i] += delta.x
             self._base_vertices[i + 1] += delta.y
@@ -103,62 +80,36 @@ class Shape(ABC):
         logging.debug(f"Moved {type(self).__name__} by ({delta.x:.1f}, {delta.y:.1f})")
 
     def _apply_rotation(self) -> None:
-        """
-        Apply the current rotation to the base vertices.
-        This is an internal method that maintains the transformation pipeline.
-        """
+        """Apply the current rotation to the base vertices"""
         if abs(self._rotation) < 0.001:
-            # No rotation needed, use base vertices directly
             self.vertices = self._base_vertices.copy()
             return
 
-        # Calculate rotation center
         center = self.get_center()
-
-        # Apply rotation transformation
         self.vertices = rotate_vertices_around_center(self._base_vertices, center, self._rotation)
 
     def scale(self, scale_x: float, scale_y: float, center: Vec2 | None = None) -> None:
-        """
-        Scale the shape by the given factors around a center point.
-
-        Args:
-            scale_x: Scaling factor for X axis
-            scale_y: Scaling factor for Y axis
-            center: Center point for scaling (defaults to shape center)
-        """
+        """Scale the shape by the given factors around a center point"""
         if center is None:
             center = self.get_center()
 
-        # Apply scaling to base vertices using direct math
         new_base_vertices = []
         for i in range(0, len(self._base_vertices), 2):
             x = self._base_vertices[i] - center.x
             y = self._base_vertices[i + 1] - center.y
 
-            # Apply scaling
             scaled_x = x * scale_x + center.x
             scaled_y = y * scale_y + center.y
 
             new_base_vertices.extend([scaled_x, scaled_y])
 
         self._base_vertices = new_base_vertices
-
-        # Reapply rotation to maintain current orientation
         self._apply_rotation()
 
         logging.debug(f"Scaled {type(self).__name__} by ({scale_x:.2f}, {scale_y:.2f}) around ({center.x:.1f}, {center.y:.1f})")
 
     def scale_from_point(self, scale_x: float, scale_y: float, reference_point: Vec2) -> None:
-        """
-        Scale the shape relative to a reference point (like mouse position).
-
-        Args:
-            scale_x: Scaling factor for X axis
-            scale_y: Scaling factor for Y axis
-            reference_point: Point relative to which scaling is calculated
-        """
-        # Calculate center relative to reference point
+        """Scale the shape relative to a reference point (like mouse position)"""
         center = self.get_center()
         delta = center - reference_point
 
@@ -173,12 +124,7 @@ class Shape(ABC):
         self.move(move_delta)
 
     def get_bounds(self) -> tuple[Vec2, Vec2]:
-        """
-        Get the axis-aligned bounding box of the shape.
-
-        Returns:
-            Tuple of (min_point, max_point) representing the bounding box
-        """
+        """Get the axis-aligned bounding box of the shape"""
         if not self.vertices:
             return Vec2(0, 0), Vec2(0, 0)
 

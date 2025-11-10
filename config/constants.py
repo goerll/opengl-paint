@@ -1,8 +1,4 @@
-"""
-Configuration constants for the OpenGL Paint application.
-Centralized constants to improve maintainability and reduce magic numbers.
-"""
-
+"""Configuration constants for the OpenGL Paint application"""
 
 class UIConfig:
     """UI-related configuration constants"""
@@ -34,56 +30,3 @@ class DrawingConfig:
 
     # Selection tolerance
     SELECTION_TOLERANCE = 5.0
-
-
-class CameraConfig:
-    """Camera and viewport configuration"""
-    DEFAULT_ZOOM = 1.0
-    MIN_ZOOM = 0.1
-    MAX_ZOOM = 10.0
-    ZOOM_SPEED = 0.1
-
-    # Pan speed
-    PAN_SPEED = 1.0
-
-
-class ColorPalette:
-    """Standard color palette for the application"""
-    RED = (1.0, 0.0, 0.0)
-    GREEN = (0.0, 1.0, 0.0)
-    BLUE = (0.0, 0.0, 1.0)
-    YELLOW = (1.0, 1.0, 0.0)
-    CYAN = (0.0, 1.0, 1.0)
-    MAGENTA = (1.0, 0.0, 1.0)
-    WHITE = (1.0, 1.0, 1.0)
-    BLACK = (0.0, 0.0, 0.0)
-    ORANGE = (1.0, 0.5, 0.0)
-    PURPLE = (0.5, 0.0, 1.0)
-    PINK = (1.0, 0.75, 0.8)
-    GRAY = (0.5, 0.5, 0.5)
-
-    @classmethod
-    def get_all_colors(cls):
-        """Get all predefined colors as a dictionary"""
-        return {
-            "Red": cls.RED,
-            "Green": cls.GREEN,
-            "Blue": cls.BLUE,
-            "Yellow": cls.YELLOW,
-            "Cyan": cls.CYAN,
-            "Magenta": cls.MAGENTA,
-            "White": cls.WHITE,
-            "Black": cls.BLACK
-        }
-
-
-class LoggingConfig:
-    """Logging configuration"""
-    DEFAULT_LEVEL = "INFO"
-    LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
-    # Specific loggers
-    INPUT_LOGGER = "input"
-    RENDER_LOGGER = "renderer"
-    UI_LOGGER = "ui"
-    SHAPE_LOGGER = "shapes"

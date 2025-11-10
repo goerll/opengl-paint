@@ -1,16 +1,17 @@
-import glm
 import logging
-from geometry.vectors import Vec2
+
+import glm
 
 
 class Camera:
+    """Camera for managing viewport and transformations in the OpenGL scene."""
+
     def __init__(self, width: int = 800, height: int = 800):
         self.width: int = width
         self.height: int = height
         self.fb_width: int = width
         self.fb_height: int = height
 
-        # Camera properties
         self.x: float = 0.0
         self.y: float = 0.0
         self.zoom_level: float = 1.0
@@ -24,8 +25,7 @@ class Camera:
         logging.info(f"Camera viewport updated to {fb_width}x{fb_height}")
 
     def screen_to_normalized(self, xpos: float, ypos: float) -> tuple[float, float]:
-        """Convert screen coordinates to NDC"""
-        # Account for framebuffer scaling
+        """Convert screen coordinates to normalized device coordinates (NDC) [-1, 1]"""
         scale_x = self.fb_width / self.width if self.width != 0 else 1.0
         scale_y = self.fb_height / self.height if self.height != 0 else 1.0
 
@@ -44,7 +44,6 @@ class Camera:
 
         # Use framebuffer aspect ratio for consistency with projection matrix
         aspect_ratio = self.fb_width / self.fb_height if self.fb_height != 0 else 1.0
-
         view_height = 2.0 / self.zoom_level
         view_width = view_height * aspect_ratio
 
@@ -73,20 +72,16 @@ class Camera:
 
     def create_view_matrix(self) -> glm.mat4:
         """Create view matrix for camera position"""
-        return glm.translate(  # type: ignore[attr-defined]
-            glm.mat4(1.0), glm.vec3(-self.x, -self.y, 0.0)
-        )
+        return glm.translate(glm.mat4(1.0), glm.vec3(-self.x, -self.y, 0.0))  # type: ignore[attr-defined]
 
     def create_model_matrix(self) -> glm.mat4:
         """Create identity model matrix"""
         return glm.mat4(1.0)
 
     def zoom_at_point(self, xpos: float, ypos: float, zoom_delta: float) -> None:
-        """Zoom camera at specific screen point"""
-        # Get world position before zoom
+        """Zoom camera at specific screen point, keeping that point fixed in world space"""
         wx, wy = self.screen_to_world(xpos, ypos)
 
-        # Apply zoom
         zoom_speed = 0.1
         if zoom_delta > 0:
             self.zoom_level *= 1.0 + zoom_speed

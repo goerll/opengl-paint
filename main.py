@@ -1,13 +1,18 @@
 import logging
+
 from core.app import GraphicsApp
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 
-# Application constants
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 800
+def main() -> None:
+    """Entry point for the OpenGL Paint application."""
+    logging.basicConfig(level=logging.INFO)
+
+    window_width = 800
+    window_height = 800
+
+    app = GraphicsApp(window_width, window_height)
+    app.run()
+
 
 if __name__ == "__main__":
-    app = GraphicsApp(WINDOW_WIDTH, WINDOW_HEIGHT)
-    app.run()
+    main()

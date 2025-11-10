@@ -2,10 +2,9 @@ from imgui_bundle import imgui
 from typing import Any
 import logging
 from geometry.vectors import Vec3
-from config.constants import UIConfig, ColorPalette
+from config.constants import UIConfig
 from ui.imgui_helpers import ImGuiHelpers
 
-# Drawing modes
 DRAWING_MODES = {
     "select": "Select (S)",
     "triangle": "Triangle (T)",
@@ -66,41 +65,30 @@ class ImGuiUI:
             imgui.text("No selection")
             return
 
-        # Calculate total area and perimeter
         total_area = sum(shape.get_area() for shape in selected_shapes)
         total_perimeter = sum(shape.get_perimeter() for shape in selected_shapes)
 
         imgui.text("Properties")
         imgui.separator()
 
-        # Display based on selection count
         if len(selected_shapes) == 1:
-            # Single selection - show detailed info
             shape = selected_shapes[0]
             shape_type = type(shape).__name__
             ImGuiHelpers.info_row("Type", shape_type)
             ImGuiHelpers.info_row("Area", f"{shape.get_area():.2f}")
             ImGuiHelpers.info_row("Perimeter", f"{shape.get_perimeter():.2f}")
         else:
-            # Multiple selection - show totals
             ImGuiHelpers.info_row("Objects", str(len(selected_shapes)))
             ImGuiHelpers.info_row("Total Area", f"{total_area:.2f}")
             ImGuiHelpers.info_row("Total Perimeter", f"{total_perimeter:.2f}")
 
-
-        # Rotation controls
-
-
-        # Color picker
         if selected_shapes:
             ImGuiHelpers.section_header("Color")
 
             # Get the current color from the first selected shape
             current_color = selected_shapes[0].get_color()
-            # Convert Vec3 to ImVec4 (add alpha = 1.0)
             color_imvec = imgui.ImVec4(current_color.r, current_color.g, current_color.b, 1.0)
 
-            # Create color picker with additional flags for better interaction
             color_flags = 0
             for flag in UIConfig.COLOR_PICKER_FLAGS:
                 color_flags |= getattr(imgui.ColorEditFlags_, flag)
@@ -108,13 +96,10 @@ class ImGuiUI:
             changed, new_color = imgui.color_picker4("Color", color_imvec, color_flags)
 
             if changed:
-                # Convert ImVec4 back to Vec3 (ImVec4 uses x,y,z,w attributes)
                 new_color_vec3 = Vec3(new_color.x, new_color.y, new_color.z)
-                # Apply color to all selected shapes
                 for shape in selected_shapes:
                     shape.color = new_color_vec3
                 logging.info(f"Changed color of {len(selected_shapes)} shape(s) to RGB({new_color.x:.2f}, {new_color.y:.2f}, {new_color.z:.2f})")
-        
 
         if selected_shapes:
             ImGuiHelpers.section_header("Rotation")

@@ -11,7 +11,7 @@ class SelectionSystem:
 
     def get_selected_shapes(self) -> List[Shape]:
         """Get the list of selected shapes"""
-        return self.selected_shapes.copy()  # Return a copy to prevent external modification
+        return self.selected_shapes.copy()
 
     def handle_selection(self, window: Any, click_point: Vec2, objects: List[Shape]) -> None:
         """Handle shape selection logic"""

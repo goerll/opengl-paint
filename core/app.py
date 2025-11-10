@@ -5,21 +5,22 @@ from OpenGL.GL import (
     glViewport,
     GL_COLOR_BUFFER_BIT,
 )
+import logging
 from typing import Any, cast
+
+from imgui_bundle import imgui
+from imgui_bundle.python_backends.glfw_backend import GlfwRenderer
 
 from core.camera import Camera
 from core.input_manager import InputManager
 from graphics.renderer import Renderer
-from geometry.vectors import Vec2, Vec3
 from systems.selection_system import SelectionSystem
 from systems.shape_factory import ShapeFactory
 from ui.imgui_ui import ImGuiUI
-from imgui_bundle import imgui
-from imgui_bundle.python_backends.glfw_backend import GlfwRenderer
-import logging
 
-# Drawing mode constants
+
 class DrawingModes:
+    """Constants for different drawing modes."""
     SELECT = "select"
     TRIANGLE = "triangle"
     CIRCLE = "circle"
@@ -28,28 +29,25 @@ class DrawingModes:
 
 
 class GraphicsApp:
+    """Main application class for the OpenGL Paint application."""
+
     def __init__(self, width: int = 800, height: int = 800) -> None:
-        # Window properties
+        """Initialize the graphics application."""
         self.width: int = width
         self.height: int = height
         self.window: Any = None
 
-        # Core systems
         self.camera = Camera(width, height)
         self.input_manager = InputManager()
         self.renderer: Renderer | None = None
         self.ui: ImGuiUI | None = None
 
-        # Application state
         self.mode: str = DrawingModes.SELECT
-        self.objects: list[Any] = []  # List of shapes
-        self.temp_shape: Any | None = None  # Temporary shape being drawn
+        self.objects: list[Any] = []
+        self.temp_shape: Any | None = None
 
-        # Shape management systems
         self.selection_system = SelectionSystem()
         self.shape_factory = ShapeFactory()
-
-        # ImGui backend (initialized after window creation)
         self.imgui_impl: Any | None = None
 
     def get_selected_shapes(self) -> list[Any]:
@@ -59,11 +57,9 @@ class GraphicsApp:
     def set_mode(self, new_mode: str) -> None:
         """Set a new drawing mode and clear any related state"""
         self.mode = new_mode
-        # Clear any in-progress shape editing when switching modes
         self.shape_factory.clear_editing_state()
-        # Clear selection when switching modes
         self.selection_system.clear_selection()
-        logging.info(f"Mode:{new_mode}")
+        logging.info(f"Mode changed to: {new_mode}")
 
     def init_window(self) -> bool:
         """Initialize GLFW window and OpenGL context"""
@@ -74,7 +70,6 @@ class GraphicsApp:
         glfw.window_hint(glfw.SCALE_TO_MONITOR, glfw.FALSE)
         logging.info("GLFW initialized")
 
-        # Window creation
         self.window = glfw.create_window(self.width, self.height, "OpenGL", None, None)
 
         if not self.window:
@@ -83,8 +78,6 @@ class GraphicsApp:
             return False
 
         logging.info("Window created")
-
-        # Set window
         glfw.make_context_current(self.window)
         glfw.swap_interval(1)
         glfw.set_window_user_pointer(self.window, self)
@@ -97,12 +90,9 @@ class GraphicsApp:
 
         logging.info("Window set")
 
-        # Initialize ImGui context and backend
         imgui.create_context()
         self.imgui_impl = GlfwRenderer(self.window)
         self.ui = ImGuiUI(self)
-
-        # Initialize input manager
         self.input_manager.initialize(self.window, self, self.imgui_impl)
 
         logging.info("Callbacks set")
@@ -134,11 +124,9 @@ class GraphicsApp:
             self.camera.create_model_matrix(),
         )
 
-        # Render all persistent shapes
         for obj in self.objects:
             renderer.render_shape(obj)
 
-        # Render temporary shape if being drawn
         if self.temp_shape:
             renderer.render_shape(self.temp_shape)
 
@@ -157,30 +145,20 @@ class GraphicsApp:
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
 
-            # Start new ImGui frame
             imgui.new_frame()
 
-            # Process ImGui inputs AFTER poll_events but before UI rendering
-            # This ensures proper mouse capture for widgets like color picker
             self.imgui_impl.process_inputs()
 
-            # Clear temporary shape when not editing (temp_shape is now updated directly in mouse movement)
             if not self.shape_factory.is_editing():
                 self.temp_shape = None
 
-            # Render UI
             self.ui.render()
-
-            # Render the scene
             self.render()
-
-            # Render ImGui overlay
             imgui.render()
             self.imgui_impl.render(imgui.get_draw_data())
 
             glfw.swap_buffers(self.window)
 
-        # Cleanup
         self._cleanup()
 
     def _print_controls(self) -> None:
@@ -205,8 +183,7 @@ class GraphicsApp:
         print("=" * 20)
 
     def _cleanup(self) -> None:
-        """Clean up resources"""
-        # Shutdown ImGui backend/context
+        """Clean up resources."""
         try:
             self.imgui_impl.shutdown()
         except Exception:
